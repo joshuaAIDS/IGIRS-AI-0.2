@@ -328,6 +328,9 @@
             <button onclick="switchTab('web')" id="tabBtn-web" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all flex items-center gap-1">
               <span>🌐</span> Web
             </button>
+            <button onclick="switchTab('protocols')" id="tabBtn-protocols" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all flex items-center gap-1">
+              <span>⚡</span> Protocols
+            </button>
             <button onclick="switchTab('memory')" id="tabBtn-memory" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 tab-active transition-all flex items-center gap-1">
               <span>🧠</span> Facts
             </button>
@@ -796,8 +799,131 @@
             </div>
 
           </div>
-        </div>
-      </div>
+
+          <!-- Tab: J.A.R.V.I.S. Executive Protocols & OS Automator -->
+          <div id="tabContent-protocols" class="tab-view hidden flex-1 flex flex-col gap-2.5 overflow-y-auto pr-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                <span>⚡</span> J.A.R.V.I.S. Executive Hub
+              </span>
+              <div class="flex items-center gap-1 text-[10px] bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+                <button onclick="switchProtocolSubmode('protocols')" id="protoSubBtn-protocols" class="px-2 py-0.5 rounded bg-blue-600 text-white font-medium transition-all">Protocols</button>
+                <button onclick="switchProtocolSubmode('tasks')" id="protoSubBtn-tasks" class="px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 transition-all">Tasks</button>
+                <button onclick="switchProtocolSubmode('storage')" id="protoSubBtn-storage" class="px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 transition-all">Storage</button>
+                <button onclick="switchProtocolSubmode('files')" id="protoSubBtn-files" class="px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 transition-all">Files</button>
+              </div>
+            </div>
+
+            <!-- Subview 1: Executive Protocols Grid -->
+            <div id="protoSubView-protocols" class="flex flex-col gap-2">
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <!-- Focus Mode -->
+                <div onclick="guiTriggerProtocol('focus')" class="p-2.5 rounded-xl bg-slate-950/80 border border-blue-900/60 hover:border-blue-500/80 cursor-pointer transition-all hover:bg-slate-900 flex flex-col gap-1 group shadow-lg shadow-blue-950/20 active:scale-95">
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-blue-400 flex items-center gap-1"><span>🎯</span> Focus Mode</span>
+                    <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800/40">45m</span>
+                  </div>
+                  <p class="text-[10px] text-slate-400 leading-tight">Dims windows, 35% audio, lo-fi beats, 45m timer.</p>
+                </div>
+
+                <!-- Stealth Mode -->
+                <div onclick="guiTriggerProtocol('stealth')" class="p-2.5 rounded-xl bg-slate-950/80 border border-purple-900/60 hover:border-purple-500/80 cursor-pointer transition-all hover:bg-slate-900 flex flex-col gap-1 group shadow-lg shadow-purple-950/20 active:scale-95">
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-purple-400 flex items-center gap-1"><span>🕶️</span> Stealth Mode</span>
+                    <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800/40">Silent</span>
+                  </div>
+                  <p class="text-[10px] text-slate-400 leading-tight">20% display brightness, 10% volume, minimized.</p>
+                </div>
+
+                <!-- Clean Slate -->
+                <div onclick="guiTriggerProtocol('clean_slate')" class="p-2.5 rounded-xl bg-slate-950/80 border border-emerald-900/60 hover:border-emerald-500/80 cursor-pointer transition-all hover:bg-slate-900 flex flex-col gap-1 group shadow-lg shadow-emerald-950/20 active:scale-95">
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-emerald-400 flex items-center gap-1"><span>🧹</span> Clean Slate</span>
+                    <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/40">Purge</span>
+                  </div>
+                  <p class="text-[10px] text-slate-400 leading-tight">Purges temp audio/web cache, empties Recycle Bin.</p>
+                </div>
+
+                <!-- Sentry Lockdown -->
+                <div onclick="guiTriggerProtocol('sentry')" class="p-2.5 rounded-xl bg-slate-950/80 border border-rose-900/60 hover:border-rose-500/80 cursor-pointer transition-all hover:bg-slate-900 flex flex-col gap-1 group shadow-lg shadow-rose-950/20 active:scale-95">
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-rose-400 flex items-center gap-1"><span>🔒</span> Sentry Lock</span>
+                    <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800/40">Secure</span>
+                  </div>
+                  <p class="text-[10px] text-slate-400 leading-tight">Captures security screen snapshot & locks PC.</p>
+                </div>
+              </div>
+
+              <!-- Full Diagnostics Scan Card -->
+              <div onclick="guiTriggerProtocol('diagnostics')" class="p-2.5 rounded-xl bg-gradient-to-r from-blue-950/60 via-slate-950 to-indigo-950/60 border border-cyan-800/50 hover:border-cyan-400 cursor-pointer transition-all flex items-center justify-between shadow-lg active:scale-95">
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-lg bg-cyan-950/80 border border-cyan-500/40 flex items-center justify-center text-cyan-400 text-sm">
+                    🩺
+                  </div>
+                  <div>
+                    <span class="text-xs font-bold text-cyan-300 block">System Diagnostics Scan</span>
+                    <span class="text-[10px] text-slate-400">Deep hardware, battery health, storage & ping report</span>
+                  </div>
+                </div>
+                <button class="px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-semibold transition-all">Scan</button>
+              </div>
+
+              <!-- Protocol Status Output Box -->
+              <div id="protocolStatusCard" class="hidden p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 text-xs text-slate-300 font-mono leading-relaxed">
+              </div>
+            </div>
+
+            <!-- Subview 2: Process & Task Manager -->
+            <div id="protoSubView-tasks" class="hidden flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] text-slate-400">High-Resource Running Tasks</span>
+                <button onclick="refreshRunningTasksGui()" class="px-2 py-1 rounded bg-slate-900 hover:bg-slate-800 text-[10px] text-slate-300 border border-slate-800 flex items-center gap-1">
+                  <span>🔄</span> Refresh
+                </button>
+              </div>
+              <div id="tasksListContainer" class="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto">
+                <div class="p-3 text-center text-xs text-slate-500">Click Refresh to scan active processes.</div>
+              </div>
+            </div>
+
+            <!-- Subview 3: Storage Radar & Recycle Bin -->
+            <div id="protoSubView-storage" class="hidden flex flex-col gap-2.5">
+              <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold text-slate-200">Disk Storage Telemetry</span>
+                  <button onclick="refreshDiskTelemetryGui()" class="px-2 py-1 rounded bg-slate-900 hover:bg-slate-800 text-[10px] text-slate-300 border border-slate-800">Refresh</button>
+                </div>
+                <div id="diskDrivesContainer" class="flex flex-col gap-2">
+                  <div class="text-xs text-slate-500">Loading drive statistics...</div>
+                </div>
+              </div>
+              <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
+                <div>
+                  <span class="text-xs font-semibold text-slate-200 block">Windows Recycle Bin</span>
+                  <span class="text-[10px] text-slate-400">Purge deleted items to reclaim disk storage</span>
+                </div>
+                <button onclick="emptyRecycleBinGui()" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white transition-all shadow-lg shadow-rose-600/30 active:scale-95 flex items-center gap-1">
+                  <span>🗑️</span> Empty Bin
+                </button>
+              </div>
+            </div>
+
+            <!-- Subview 4: File Quick Finder -->
+            <div id="protoSubView-files" class="hidden flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <input id="fileSearchInput" type="text" placeholder="Search Desktop, Downloads, Docs..."
+                  onkeydown="if(event.key==='Enter') executeFileSearchGui()"
+                  class="flex-1 bg-slate-900 text-xs text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 border border-slate-800 focus:outline-none focus:border-cyan-500 font-mono">
+                <button onclick="executeFileSearchGui()" class="px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-xs font-semibold text-white transition-all shadow-lg active:scale-95 flex items-center gap-1">
+                  <span>🔍</span> Find
+                </button>
+              </div>
+              <div id="fileResultsContainer" class="flex flex-col gap-1.5 max-h-[200px] overflow-y-auto text-xs">
+                <div class="p-3 text-center text-slate-500">Enter a keyword or filename to search local user directories.</div>
+              </div>
+            </div>
+
+          </div>
 
     </main>
 
@@ -1987,6 +2113,7 @@
 
       if (tabId === 'comm') loadCommPanel();
       if (tabId === 'docs') loadIndexedDocuments();
+      if (tabId === 'protocols') loadProtocolsPanel();
       if (tabId === 'diagnostics') refreshTelemetry();
       if (tabId === 'memory') loadFacts();
       if (tabId === 'settings') loadVoiceSettings();
@@ -3420,6 +3547,198 @@
             <span>Saved to: <span class="font-mono text-slate-200">${escapeHtml(res.screenshot_path || '')}</span></span>
             <span class="font-mono text-rose-400">${res.full_page ? 'Full Page' : 'Viewport'}</span>
           </div>
+        </div>
+      `;
+      stream.appendChild(bubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    // --- J.A.R.V.I.S. Executive Protocols Hub JS ---
+
+    function loadProtocolsPanel() {
+      refreshDiskTelemetryGui();
+      refreshRunningTasksGui();
+    }
+
+    function switchProtocolSubmode(mode) {
+      ['protocols', 'tasks', 'storage', 'files'].forEach(m => {
+        const btn = document.getElementById(`protoSubBtn-${m}`);
+        const view = document.getElementById(`protoSubView-${m}`);
+        if (btn) {
+          if (m === mode) {
+            btn.className = "px-2 py-0.5 rounded bg-blue-600 text-white font-medium transition-all";
+          } else {
+            btn.className = "px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 transition-all";
+          }
+        }
+        if (view) {
+          if (m === mode) view.classList.remove('hidden');
+          else view.classList.add('hidden');
+        }
+      });
+      if (mode === 'tasks') refreshRunningTasksGui();
+      if (mode === 'storage') refreshDiskTelemetryGui();
+    }
+
+    async function guiTriggerProtocol(protoName) {
+      const card = document.getElementById('protocolStatusCard');
+      if (card) {
+        card.classList.remove('hidden');
+        card.innerHTML = `<span class="text-cyan-400 font-bold">⚡ Initiating Protocol ${protoName.toUpperCase()}...</span>`;
+      }
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.trigger_protocol(protoName);
+          if (card) {
+            card.innerHTML = `
+              <div class="flex items-center justify-between text-[11px] font-bold text-cyan-300 border-b border-slate-800 pb-1 mb-1.5">
+                <span>PROTOCOL ${protoName.toUpperCase()}</span>
+                <span class="text-emerald-400 font-mono">ENGAGED</span>
+              </div>
+              <div class="text-slate-200 text-xs">${escapeHtml(res.spoken_summary || res.message || 'Complete')}</div>
+            `;
+          }
+          appendProtocolBubble(res);
+        } catch (e) {
+          if (card) card.innerHTML = `<span class="text-rose-400">Error executing protocol: ${escapeHtml(String(e))}</span>`;
+        }
+      }
+    }
+
+    async function refreshRunningTasksGui() {
+      const container = document.getElementById('tasksListContainer');
+      if (!container) return;
+      container.innerHTML = `<div class="p-3 text-center text-xs text-slate-500">Scanning active processes...</div>`;
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.get_running_tasks();
+          if (res && res.top_memory && res.top_memory.length > 0) {
+            container.innerHTML = res.top_memory.map(p => `
+              <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900/90 border border-slate-800 text-xs">
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] font-mono text-slate-500">PID ${p.pid}</span>
+                  <span class="font-semibold text-slate-200">${escapeHtml(p.name)}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-[11px] font-mono text-cyan-400">${p.memory_mb} MB</span>
+                  <button onclick="killProcessGui('${escapeHtml(p.name)}')" class="px-2 py-0.5 rounded bg-rose-950 hover:bg-rose-900 border border-rose-800/60 text-rose-300 text-[10px] font-mono transition-all">Kill</button>
+                </div>
+              </div>
+            `).join('');
+          } else {
+            container.innerHTML = `<div class="p-3 text-center text-xs text-slate-500">No high-memory processes detected.</div>`;
+          }
+        } catch (e) {
+          container.innerHTML = `<div class="p-3 text-center text-xs text-rose-400">Error: ${escapeHtml(String(e))}</div>`;
+        }
+      }
+    }
+
+    async function killProcessGui(procName) {
+      if (!confirm(`Are you sure you want to terminate ${procName}, Sir?`)) return;
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.kill_app_task(procName);
+          appendAiBubble(res.spoken_summary || res.message || `Terminated ${procName}`);
+          refreshRunningTasksGui();
+        } catch (e) {
+          console.error("Kill error:", e);
+        }
+      }
+    }
+
+    async function refreshDiskTelemetryGui() {
+      const container = document.getElementById('diskDrivesContainer');
+      if (!container) return;
+      container.innerHTML = `<div class="text-xs text-slate-500">Scanning drive partitions...</div>`;
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.get_disk_telemetry();
+          if (res && res.drives && res.drives.length > 0) {
+            container.innerHTML = res.drives.map(d => `
+              <div class="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 flex flex-col gap-1.5">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-bold text-slate-200">Drive ${escapeHtml(d.device)} <span class="text-[10px] text-slate-400 font-mono">(${escapeHtml(d.fstype || 'NTFS')})</span></span>
+                  <span class="font-mono text-cyan-400 text-[11px]">${d.free_gb} GB free / ${d.total_gb} GB</span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                  <div class="h-full ${d.percent_used > 85 ? 'bg-rose-500' : 'bg-cyan-500'} transition-all" style="width: ${d.percent_used}%"></div>
+                </div>
+              </div>
+            `).join('');
+          } else {
+            container.innerHTML = `<div class="text-xs text-slate-500">Drive telemetry unavailable.</div>`;
+          }
+        } catch (e) {
+          container.innerHTML = `<div class="text-xs text-rose-400">Error: ${escapeHtml(String(e))}</div>`;
+        }
+      }
+    }
+
+    async function emptyRecycleBinGui() {
+      if (!confirm("Empty the Windows Recycle Bin permanently, Sir?")) return;
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.empty_trash();
+          appendAiBubble(res.spoken_summary || "Windows Recycle Bin has been emptied, Sir.");
+        } catch (e) {
+          console.error("Recycle bin error:", e);
+        }
+      }
+    }
+
+    async function executeFileSearchGui() {
+      const input = document.getElementById('fileSearchInput');
+      const q = input ? input.value.trim() : '';
+      if (!q) return;
+      const container = document.getElementById('fileResultsContainer');
+      if (container) container.innerHTML = `<div class="p-3 text-center text-slate-400">Scanning user directories for '${escapeHtml(q)}'...</div>`;
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.search_desktop_files(q);
+          if (res && res.files && res.files.length > 0) {
+            container.innerHTML = res.files.map(f => `
+              <div onclick="openFileGui('${escapeHtml(f.path.replace(/\\/g, '\\\\'))}')" class="p-2 rounded-lg bg-slate-900/90 border border-slate-800 hover:border-cyan-500/80 cursor-pointer transition-all flex items-center justify-between text-xs group">
+                <div class="flex items-center gap-2 overflow-hidden">
+                  <span>${f.is_directory ? '📁' : '📄'}</span>
+                  <div class="truncate">
+                    <span class="font-semibold text-slate-200 group-hover:text-cyan-300 block truncate">${escapeHtml(f.name)}</span>
+                    <span class="text-[10px] text-slate-500 truncate block">${escapeHtml(f.path)}</span>
+                  </div>
+                </div>
+                <span class="text-[10px] font-mono text-slate-400 whitespace-nowrap pl-2">${f.size_kb ? f.size_kb + ' KB' : 'DIR'}</span>
+              </div>
+            `).join('');
+          } else {
+            container.innerHTML = `<div class="p-3 text-center text-slate-500">No matching files found for '${escapeHtml(q)}'.</div>`;
+          }
+        } catch (e) {
+          if (container) container.innerHTML = `<div class="p-3 text-center text-rose-400">Error: ${escapeHtml(String(e))}</div>`;
+        }
+      }
+    }
+
+    async function openFileGui(path) {
+      if (hasBridge()) {
+        try {
+          await window.pywebview.api.send_chat_message(`open file "${path}"`);
+        } catch (e) { console.error("Open file error:", e); }
+      }
+    }
+
+    function appendProtocolBubble(res) {
+      const stream = document.getElementById('chatStream');
+      if (!stream) return;
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const bubble = document.createElement('div');
+      bubble.className = 'flex flex-col items-start gap-1 max-w-[95%]';
+      bubble.innerHTML = `
+        <span class="text-[10px] font-mono text-cyan-400 pl-1">J.A.R.V.I.S. Protocol Engine • ${time} • <span class="text-emerald-400 font-bold uppercase">${escapeHtml(res.protocol || 'Protocol')}</span></span>
+        <div class="w-full bg-slate-900/95 border border-cyan-500/50 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-2xl flex flex-col gap-2">
+          <div class="text-sm font-semibold text-cyan-200 flex items-center gap-1.5">
+            <span>⚡</span> Protocol ${escapeHtml((res.protocol || '').toUpperCase())} Engaged
+          </div>
+          <div class="text-xs text-slate-300 leading-relaxed">${escapeHtml(res.spoken_summary || 'Action complete, Sir.')}</div>
         </div>
       `;
       stream.appendChild(bubble);

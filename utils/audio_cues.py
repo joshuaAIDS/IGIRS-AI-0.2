@@ -110,3 +110,16 @@ def play_stop_cue():
 def play_barge_in_cue():
     """Plays soft instant click/blip (700Hz) when user interrupts assistant speech."""
     _play_cached("barge_in", lambda: _create_synth_sound(700, 700, 35, volume=0.16))
+
+def play_protocol_cue():
+    """Plays futuristic rising resonant sweep (650Hz -> 1850Hz) for protocol engagement."""
+    _play_cached("protocol", lambda: _create_synth_sound(650, 1850, 160, volume=0.22))
+
+def play_diagnostic_cue():
+    """Plays dual-tone acoustic pulse (880Hz + 1320Hz) for diagnostic sweeps."""
+    _play_cached("diagnostic", lambda: _create_chord_sound(880, 1320, 150, volume=0.20))
+
+def play_alert_cue():
+    """Plays sharp warning klaxon tone for security protocols."""
+    _play_cached("alert", lambda: _create_synth_sound(1200, 850, 120, volume=0.22))
+

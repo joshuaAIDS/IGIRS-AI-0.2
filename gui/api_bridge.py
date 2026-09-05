@@ -723,3 +723,73 @@ class DesktopApiBridge:
             self.notify_state("standby")
             logger.error(f"Bridge capture_web_screenshot error: {e}")
             return {"status": "error", "message": str(e)}
+
+    # --- J.A.R.V.I.S. Executive Protocols & OS Bridge ---
+
+    def trigger_protocol(self, protocol_name: str, parameters: Optional[Dict[str, Any]] = None, speak: bool = True) -> Dict[str, Any]:
+        """Triggers a named J.A.R.V.I.S. Executive Protocol."""
+        self.notify_state("thinking")
+        try:
+            res = self._assistant.tools.protocols.execute_protocol(protocol_name=protocol_name, parameters=parameters)
+            if res.get("status") == "success" and speak and self._assistant.tts.enabled:
+                self._assistant.tts.speak(res.get("spoken_summary", f"Protocol {protocol_name} executed, Sir."))
+                self.notify_state("speaking")
+            else:
+                self.notify_state("standby")
+            return res
+        except Exception as e:
+            self.notify_state("standby")
+            logger.error(f"Bridge trigger_protocol error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_running_tasks(self) -> Dict[str, Any]:
+        """Returns top memory and CPU consuming processes."""
+        try:
+            return self._assistant.tools.os_automator.manage_processes(action="list_heavy")
+        except Exception as e:
+            logger.error(f"Bridge get_running_tasks error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def kill_app_task(self, process_name: str, speak: bool = True) -> Dict[str, Any]:
+        """Terminates an active Windows process."""
+        self.notify_state("thinking")
+        try:
+            res = self._assistant.tools.os_automator.manage_processes(action="kill", process_name=process_name)
+            if res.get("status") == "success" and speak and self._assistant.tts.enabled:
+                self._assistant.tts.speak(res.get("spoken_summary", f"Terminated {process_name}, Sir."))
+                self.notify_state("speaking")
+            else:
+                self.notify_state("standby")
+            return res
+        except Exception as e:
+            self.notify_state("standby")
+            logger.error(f"Bridge kill_app_task error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def search_desktop_files(self, query: str) -> Dict[str, Any]:
+        """Searches user folders for matching files."""
+        try:
+            return self._assistant.tools.os_automator.manage_files(action="search", query=query)
+        except Exception as e:
+            logger.error(f"Bridge search_desktop_files error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_disk_telemetry(self) -> Dict[str, Any]:
+        """Returns storage telemetry for all disk partitions."""
+        try:
+            return self._assistant.tools.os_automator.get_storage_status()
+        except Exception as e:
+            logger.error(f"Bridge get_disk_telemetry error: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def empty_trash(self, speak: bool = True) -> Dict[str, Any]:
+        """Empties the Windows Recycle Bin."""
+        try:
+            res = self._assistant.tools.os_automator.empty_recycle_bin()
+            if res.get("status") == "success" and speak and self._assistant.tts.enabled:
+                self._assistant.tts.speak(res.get("spoken_summary", "Recycle bin emptied, Sir."))
+            return res
+        except Exception as e:
+            logger.error(f"Bridge empty_trash error: {e}")
+            return {"status": "error", "message": str(e)}
+

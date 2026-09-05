@@ -229,6 +229,34 @@ class IGIRSAssistant:
         ):
             selected_tool_names.add("capture_webpage_screenshot")
 
+        # --- J.A.R.V.I.S. Executive Protocols & OS Automator Triggers ---
+
+        # 22. Executive Protocols
+        if any(w in text for w in ["protocol", "clean slate", "lockdown", "sentry", "diagnostics", "system scan", "hardware scan", "health check"]):
+            selected_tool_names.add("execute_protocol")
+
+        # 23. File & Folder Operations
+        if (any(w in text for w in ["find file", "search for file", "search file", "search files", "find my", "where is file"]) or
+            re.search(r"\b(create|make|new)\s+(folder|directory)\b", text) or
+            re.search(r"\b(create|write|new)\s+(file|document|script)\b", text) or
+            re.search(r"\b(read|view|show|display)\s+(file|document)\b", text) or
+            re.search(r"\b(open|launch)\s+(file|document|pdf|image)\b", text)):
+            selected_tool_names.add("manage_files")
+
+        # 24. Process & Task Manager
+        if (any(w in text for w in ["heavy process", "running process", "task manager", "what apps are running", "resource usage", "heavy tasks"]) or
+            re.search(r"\b(kill|terminate|force close|force stop)\s+(process|app|application|task|chrome|notepad|code|spotify|browser)\b", text) or
+            re.search(r"\b(kill|terminate)\s+[a-zA-Z0-9_-]+\b", text)):
+            selected_tool_names.add("manage_processes")
+
+        # 25. Disk & Storage Telemetry
+        if any(w in text for w in ["storage", "disk space", "free space", "drive space", "how much storage", "hard drive", "ssd space", "disk usage"]):
+            selected_tool_names.add("get_storage_status")
+
+        # 26. Recycle Bin Maintenance
+        if any(w in text for w in ["empty recycle bin", "clean recycle bin", "clear recycle bin", "purge recycle bin", "empty trash", "clean trash"]):
+            selected_tool_names.add("empty_recycle_bin")
+
         if not selected_tool_names:
             return None
 
@@ -256,7 +284,8 @@ class IGIRSAssistant:
 
         # Handle direct "stop listening" commands immediately
         if self.is_stop_listening_intent(user_input):
-            stop_reply = f"I've stopped listening, {self.memory.user_name}. Tap the mic or continuous voice whenever you need me!"
+            honorific = getattr(config, "JARVIS_HONORIFIC", "Sir") if getattr(config, "JARVIS_MODE", False) else self.memory.user_name
+            stop_reply = f"Standing by, {honorific}. Call me whenever you require assistance."
             self.memory.add_user_message(user_input)
             self.memory.add_assistant_message(stop_reply)
             if speak_response:

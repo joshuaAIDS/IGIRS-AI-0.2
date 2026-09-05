@@ -25,9 +25,27 @@ class ToolRegistry:
         self.wa_engine = None
         self.mail_engine = None
         self._web_automator = None
+        self._protocols = None
+        self._os_automator = None
         self.tools: Dict[str, Dict[str, Any]] = {}
         self.handlers: Dict[str, Callable] = {}
         self._register_default_tools()
+
+    @property
+    def protocols(self):
+        """Lazy-loaded ProtocolsEngine instance."""
+        if self._protocols is None:
+            from tools.protocols import ProtocolsEngine
+            self._protocols = ProtocolsEngine(memory_manager=self.memory_manager, tts_engine=self.tts_engine)
+        return self._protocols
+
+    @property
+    def os_automator(self):
+        """Lazy-loaded OSAutomator instance."""
+        if self._os_automator is None:
+            from tools.os_automator import OSAutomator
+            self._os_automator = OSAutomator()
+        return self._os_automator
 
     @property
     def web(self):
@@ -774,6 +792,102 @@ class ToolRegistry:
             handler=self._tool_capture_webpage_screenshot
         )
 
+        # 37. J.A.R.V.I.S. Executive Protocols
+        self.register(
+            name="execute_protocol",
+            description="Executes a named J.A.R.V.I.S. Executive Protocol: 'focus' (dim distractions, set timer, play lofi), 'stealth' (dim screen, silent volume, minimize), 'clean_slate' (purge temp caches & empty recycle bin), 'sentry' (security capture & lock workstation), or 'diagnostics' (full hardware & network scan).",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "protocol_name": {
+                        "type": "string",
+                        "enum": ["focus", "stealth", "clean_slate", "sentry", "diagnostics"],
+                        "description": "Name of the protocol to execute."
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "description": "Optional parameters like duration_minutes."
+                    }
+                },
+                "required": ["protocol_name"]
+            },
+            handler=self._tool_execute_protocol
+        )
+
+        # 38. J.A.R.V.I.S. Autonomous OS & File Master
+        self.register(
+            name="manage_files",
+            description="Search for files across Desktop, Downloads, and Documents, create new folders or text files, read file contents, or open files in their default Windows apps.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["search", "create_folder", "create_file", "read_file", "open_file"],
+                        "description": "File management operation."
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "Search keyword or filename (e.g. 'resume', 'project_notes.txt')."
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Target folder or file path."
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Content to write when creating a file."
+                    }
+                },
+                "required": ["action"]
+            },
+            handler=self._tool_manage_files
+        )
+
+        # 39. J.A.R.V.I.S. Process & Task Manager
+        self.register(
+            name="manage_processes",
+            description="Monitor active Windows processes to identify top CPU/memory consuming applications or safely terminate unresponsive/runaway apps.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["list_heavy", "kill"],
+                        "description": "Operation: 'list_heavy' for top resource consumers, 'kill' to terminate an app."
+                    },
+                    "process_name": {
+                        "type": "string",
+                        "description": "Process name or PID to terminate (e.g. 'chrome.exe', 'notepad')."
+                    }
+                },
+                "required": ["action"]
+            },
+            handler=self._tool_manage_processes
+        )
+
+        # 40. J.A.R.V.I.S. Drive Storage Telemetry
+        self.register(
+            name="get_storage_status",
+            description="Scans all fixed disk drive partitions (C:, D:) and returns capacity, used gigabytes, and free storage space.",
+            parameters={
+                "type": "object",
+                "properties": {}
+            },
+            handler=self._tool_get_storage_status
+        )
+
+        # 41. J.A.R.V.I.S. Recycle Bin Maintenance
+        self.register(
+            name="empty_recycle_bin",
+            description="Empties the Windows Recycle Bin to reclaim storage space silently.",
+            parameters={
+                "type": "object",
+                "properties": {}
+            },
+            handler=self._tool_empty_recycle_bin
+        )
+
     # ------------------ TOOL IMPLEMENTATIONS ------------------
 
     def _tool_system_telemetry(self, **kwargs) -> Dict[str, Any]:
@@ -1241,4 +1355,27 @@ class ToolRegistry:
     def _tool_capture_webpage_screenshot(self, url: str, full_page: bool = False, **kwargs) -> Dict[str, Any]:
         """Captures a PNG screenshot of a live website."""
         return self.web.capture_webpage_screenshot(url=url, full_page=full_page)
+
+    # --- J.A.R.V.I.S. Protocols & OS Automation Handlers ---
+
+    def _tool_execute_protocol(self, protocol_name: str, parameters: Optional[Dict[str, Any]] = None, **kwargs) -> Dict[str, Any]:
+        """Executes a named J.A.R.V.I.S. protocol."""
+        return self.protocols.execute_protocol(protocol_name=protocol_name, parameters=parameters)
+
+    def _tool_manage_files(self, action: str, query: str = "", path: str = "", content: str = "", **kwargs) -> Dict[str, Any]:
+        """Manages local files and folders."""
+        return self.os_automator.manage_files(action=action, query=query, path=path, content=content)
+
+    def _tool_manage_processes(self, action: str, process_name: str = "", **kwargs) -> Dict[str, Any]:
+        """Lists resource-heavy processes or terminates a process."""
+        return self.os_automator.manage_processes(action=action, process_name=process_name)
+
+    def _tool_get_storage_status(self, **kwargs) -> Dict[str, Any]:
+        """Returns drive storage telemetry."""
+        return self.os_automator.get_storage_status()
+
+    def _tool_empty_recycle_bin(self, **kwargs) -> Dict[str, Any]:
+        """Empties the Windows Recycle Bin."""
+        return self.os_automator.empty_recycle_bin()
+
 
