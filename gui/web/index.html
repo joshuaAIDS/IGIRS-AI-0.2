@@ -1,0 +1,3717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IGIRS AI — 3D Cyber Command Center</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-void: #03050A;
+      --bg-elevated: rgba(10, 14, 26, 0.75);
+      --bg-surface: rgba(16, 22, 40, 0.85);
+      --bg-inset: rgba(6, 9, 20, 0.9);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(58, 134, 255, 0.3);
+      --text-primary: #F1F5F9;
+      --text-secondary: #94A3B8;
+      --text-tertiary: #64748B;
+      --orb-accent: #3a86ff;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-void);
+      color: var(--text-primary);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* 3D WebGL Canvas */
+    #webglCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      display: block;
+      cursor: grab;
+    }
+    #webglCanvas:active {
+      cursor: grabbing;
+    }
+
+    /* Glassmorphic Floating HUD Layer */
+    .hud-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 1.25rem;
+    }
+    .hud-interactive {
+      pointer-events: auto;
+    }
+
+    .glass-panel {
+      background: var(--bg-elevated);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    }
+    .glass-panel:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 8px; }
+
+    .tab-active {
+      color: #FFFFFF !important;
+      background: rgba(255, 255, 255, 0.08);
+      border-bottom: 2px solid #3a86ff;
+    }
+
+    /* Floating drag hint */
+    .drag-hint {
+      animation: fadeHint 5s ease-in-out forwards;
+    }
+    @keyframes fadeHint {
+      0% { opacity: 0; transform: translateY(8px); }
+      15% { opacity: 0.95; transform: translateY(0); }
+      85% { opacity: 0.95; }
+      100% { opacity: 0; pointer-events: none; }
+    }
+  </style>
+</head>
+<body class="selection:bg-blue-600 selection:text-white">
+
+  <!-- ═══════════════════ NATIVE WEBGL 3D ORB CANVAS ═══════════════════ -->
+  <canvas id="webglCanvas"></canvas>
+
+  <!-- 3D Orb Interactive Floating Zoom Widget -->
+  <div id="zoomControls" class="fixed right-6 bottom-24 z-30 hud-interactive flex flex-col items-center gap-1.5 p-1.5 rounded-2xl bg-slate-950/75 border border-slate-700/60 backdrop-blur-xl shadow-2xl transition-all hover:border-blue-500/60 select-none">
+    <button id="zoomInBtn" title="Zoom In (Scroll Up or +)" class="w-8 h-8 rounded-xl bg-slate-800/80 hover:bg-blue-600 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow active:scale-90">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4"/></svg>
+    </button>
+    <button id="zoomResetBtn" title="Double-click orb or click here to reset zoom" class="px-1.5 py-1 rounded-lg hover:bg-slate-800 text-[10px] font-mono font-medium text-slate-400 hover:text-blue-400 transition-all select-none">
+      <span id="zoomPercent">100%</span>
+    </button>
+    <button id="zoomOutBtn" title="Zoom Out (Scroll Down or -)" class="w-8 h-8 rounded-xl bg-slate-800/80 hover:bg-blue-600 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow active:scale-90">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M20 12H4"/></svg>
+    </button>
+  </div>
+
+  <!-- Drag & Zoom Hint Notification -->
+  <div class="drag-hint fixed bottom-10 right-6 z-20 hud-interactive px-3.5 py-1.5 rounded-full bg-slate-950/80 border border-slate-700/60 text-[11px] text-slate-300 font-mono flex items-center gap-2 backdrop-blur-md shadow-2xl">
+    <span class="w-2 h-2 rounded-full bg-blue-400 animate-ping"></span>
+    <span>✨ Drag to rotate • Scroll to Zoom</span>
+  </div>
+
+  <!-- ═══════════════════ FLOATING HUD INTERFACE ═══════════════════ -->
+  <div class="hud-layer">
+
+    <!-- TOP HEADER -->
+    <header class="hud-interactive glass-panel px-5 py-3.5 flex flex-wrap items-center justify-between gap-4 max-w-[1400px] w-full mx-auto">
+      <!-- Left Logo -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 shadow-lg shadow-blue-500/25 border border-blue-400/40">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+            <path d="M2 12h20"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-base font-bold tracking-tight bg-gradient-to-r from-blue-400 via-sky-200 to-indigo-300 bg-clip-text text-transparent">
+              IGIRS AI
+            </span>
+            <span class="px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider rounded-md bg-cyan-950/90 text-cyan-300 border border-cyan-700/60">
+              v0.2
+            </span>
+            <span class="px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider rounded-md bg-blue-950/90 text-blue-300 border border-blue-800/60">
+              3D Orb Live
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
+            <span>🗣️ Tamil + English</span>
+            <span>•</span>
+            <span class="text-blue-400 font-mono">Nemotron-3-Ultra-550B</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Center Status -->
+      <div class="flex items-center gap-3">
+        <div class="px-4 py-1.5 rounded-full bg-slate-950/80 border border-slate-800 flex items-center gap-2.5 shadow-inner">
+          <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
+          <span id="statusLabel" class="text-xs font-semibold font-mono text-slate-200 tracking-wide uppercase">
+            STANDBY: "HEY IGRIS"
+          </span>
+          <span class="text-slate-600">|</span>
+          <span id="liveClock" class="text-xs font-mono text-slate-400">--:--:--</span>
+        </div>
+
+        <!-- Always Listening Toggle -->
+        <button id="alwaysListeningBtn" onclick="toggleAlwaysListening()" title="Toggle Continuous Hands-Free Listening" 
+          class="px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold transition-all border flex items-center gap-2 bg-slate-950/90 border-slate-800 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/40">
+          <span id="alwaysListeningDot" class="w-2 h-2 rounded-full bg-slate-600"></span>
+          <span id="alwaysListeningText">Always Listening: OFF</span>
+        </button>
+      </div>
+
+      <!-- Right Voice State Tester -->
+      <div class="flex items-center gap-2">
+        <div class="flex items-center bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs">
+          <button onclick="setVoiceState('standby')" id="btn-standby" class="px-2.5 py-1 rounded-lg text-white bg-blue-600/30 border border-blue-500/40 transition-all">Idle (Blue)</button>
+          <button onclick="setVoiceState('listening')" id="btn-listening" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-emerald-400 transition-all">Listen (Cyan)</button>
+          <button onclick="setVoiceState('thinking')" id="btn-thinking" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-rose-400 transition-all">Reason (Red)</button>
+          <button onclick="setVoiceState('speaking')" id="btn-speaking" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-purple-400 transition-all">Speak (Purple)</button>
+        </div>
+        <button onclick="toggleHud()" class="p-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs flex items-center gap-1.5 transition-all">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          <span id="toggleText">Hide Panels</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- MIDDLE SECTION: Floating HUD Panels -->
+    <main id="hudPanels" class="grid grid-cols-1 lg:grid-cols-12 gap-5 my-auto max-w-[1400px] w-full mx-auto transition-opacity duration-300">
+      
+      <!-- LEFT HUD: Chat Stream -->
+      <div class="lg:col-span-5 flex flex-col gap-3">
+        <div class="hud-interactive glass-panel p-5 flex flex-col h-[440px] shadow-2xl">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800/80 text-xs text-slate-400">
+            <span class="flex items-center gap-2 font-semibold text-slate-200">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              Live Assistant Stream
+            </span>
+            <button onclick="clearChat()" class="hover:text-rose-400 transition-colors text-[11px] font-mono">
+              Clear Log
+            </button>
+          </div>
+
+          <!-- Messages -->
+          <div id="chatStream" class="flex-1 overflow-y-auto py-3 space-y-3.5 pr-1.5">
+            <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800/60 text-xs text-slate-400 flex items-start gap-2.5">
+              <span class="text-blue-400 font-mono text-sm">⚡</span>
+              <div>
+                <p class="font-semibold text-slate-200">3D Wireframe Orb Core Active</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">
+                  Wake word <strong class="text-blue-400 font-mono">"HEY IGRIS"</strong> ready. Drag 3D Orb to explore.
+                </p>
+              </div>
+            </div>
+
+            <!-- User message -->
+            <div class="flex flex-col items-end gap-1">
+              <span class="text-[10px] font-mono text-slate-400 pr-1">Joshua • 17:25</span>
+              <div class="max-w-[85%] bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 text-xs leading-relaxed shadow-lg">
+                Hey Igris, check system health and test Tamil voice response.
+              </div>
+            </div>
+
+            <!-- Tool Badge -->
+            <div class="max-w-[90%] bg-slate-950/90 border border-amber-500/30 rounded-xl p-3 flex flex-col gap-1.5 shadow-lg">
+              <div class="flex items-center justify-between text-xs">
+                <span class="flex items-center gap-1.5 text-amber-400 font-mono font-medium text-[11px]">
+                  <span>⚙️</span> Tool Invocation: system_diagnostics()
+                </span>
+                <span class="px-2 py-0.5 text-[9px] font-mono rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/80">
+                  200 OK (62ms)
+                </span>
+              </div>
+              <div class="text-[10px] font-mono text-slate-300 bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 truncate">
+                CPU: 14% | RAM: 48% | Battery: 92% ⚡ AC
+              </div>
+            </div>
+
+            <!-- Assistant response -->
+            <div class="flex flex-col items-start gap-1">
+              <span class="text-[10px] font-mono text-blue-400 pl-1">IGIRS AI • 17:25</span>
+              <div class="max-w-[90%] bg-slate-900/90 border border-slate-800 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-xl flex flex-col gap-2">
+                <p>
+                  System diagnostics are optimal. CPU load is <strong>14%</strong>, RAM is <strong>48%</strong>, and battery is <strong>92% (Plugged In)</strong>.
+                </p>
+                <p class="text-[11px] text-purple-300 italic border-l-2 border-purple-500 pl-2.5 mt-1">
+                  "வணக்கம்! அனைத்து சிஸ்டங்களும் சீராக இயங்குகின்றன."
+                </p>
+                <div class="flex items-center gap-3 pt-2 border-t border-slate-800/80 text-[10px] text-slate-400">
+                  <button onclick="respeakMessage(this)" class="hover:text-blue-300 flex items-center gap-1 transition-colors">
+                    <span>🔊</span> Re-speak
+                  </button>
+                  <span class="ml-auto font-mono text-slate-500">Nemotron-3-Ultra</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Mini Input -->
+          <div class="pt-3 border-t border-slate-800/80 flex items-center gap-2">
+            <input id="streamInput" type="text" placeholder="Speak or type a command..." 
+              onkeydown="if(event.key==='Enter') sendStreamMessage()"
+              class="flex-1 bg-slate-950/90 text-xs text-slate-200 placeholder-slate-500 rounded-xl px-3.5 py-2.5 border border-slate-800 focus:outline-none focus:border-blue-500 font-sans">
+            <button onclick="document.getElementById('docFileInput').click()" title="Attach Local PDF, Notes, Resume, or Code (Phase 5 Knowledge Vault)" class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-blue-400 transition-all hover:scale-105 flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            <button onclick="triggerScreenVision()" title="Multimodal Screen Vision: inspect/explain your screen (Ctrl+Shift+S)" class="p-2.5 rounded-xl bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-500/50 text-indigo-300 hover:text-white shadow-lg shadow-indigo-500/20 transition-all hover:scale-105 flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+            <button onclick="document.getElementById('visionFileInput').click()" title="Upload Screenshot / Image for Vision Analysis" class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-cyan-300 transition-all hover:scale-105 flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            </button>
+            <input type="file" id="visionFileInput" accept="image/*" class="hidden" onchange="handleVisionFileUpload(event)">
+            <button onclick="triggerVoiceCycle()" title="Push to Talk (Single Turn)" class="p-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 transition-all hover:scale-105">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+            </button>
+            <button id="inputAlwaysListeningBtn" onclick="toggleAlwaysListening()" title="Toggle Hands-Free Continuous Voice Mode" class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-emerald-400 transition-all">
+              <span class="font-mono text-xs font-bold">⚡</span>
+            </button>
+            <button onclick="sendStreamMessage()" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition-all">
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER SPACER: Lets the 3D Orb shine in center -->
+      <div class="hidden lg:flex lg:col-span-2 flex-col items-center justify-center gap-2.5">
+        <button onclick="triggerVoiceCycle()" class="hud-interactive px-4 py-2 rounded-full bg-slate-950/70 border border-blue-500/30 text-xs font-mono text-blue-300 hover:text-white hover:border-blue-400 backdrop-blur-md transition-all shadow-xl hover:scale-105 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-blue-400 animate-ping"></span>
+          <span>🎙️ Push to Talk</span>
+        </button>
+        <button id="centerAlwaysListeningBtn" onclick="toggleAlwaysListening()" class="hud-interactive px-4 py-2 rounded-full bg-slate-950/70 border border-slate-700/60 text-xs font-mono text-slate-300 hover:text-emerald-300 hover:border-emerald-500/50 backdrop-blur-md transition-all shadow-xl hover:scale-105 flex items-center gap-2">
+          <span id="centerAlwaysDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+          <span id="centerAlwaysText">⚡ Continuous Voice</span>
+        </button>
+
+        <!-- Cyber Media Dock -->
+        <div class="hud-interactive flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-950/80 border border-slate-700/60 backdrop-blur-md shadow-2xl transition-all hover:border-blue-500/50 select-none">
+          <button onclick="triggerMediaControl('previous')" title="Previous Track (Windows Media Key)" class="w-7 h-7 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-[10px] transition-all active:scale-90">⏮️</button>
+          <button onclick="triggerMediaControl('play_pause')" title="Play / Pause (Windows Media Key)" class="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center text-xs transition-all shadow-lg shadow-blue-600/30 active:scale-90">⏯️</button>
+          <button onclick="triggerMediaControl('next')" title="Next Track (Windows Media Key)" class="w-7 h-7 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-[10px] transition-all active:scale-90">⏭️</button>
+          <div class="w-px h-3.5 bg-slate-700 mx-0.5"></div>
+          <button onclick="triggerSpotifyQuick()" title="Launch / Resume Spotify" class="w-7 h-7 rounded-full bg-emerald-950/80 hover:bg-emerald-600 text-emerald-400 hover:text-white flex items-center justify-center text-[11px] transition-all border border-emerald-500/30 active:scale-90">🟢</button>
+          <button onclick="triggerYouTubeQuick()" title="Open YouTube" class="w-7 h-7 rounded-full bg-rose-950/80 hover:bg-rose-600 text-rose-400 hover:text-white flex items-center justify-center text-[11px] transition-all border border-rose-500/30 active:scale-90">🔴</button>
+        </div>
+      </div>
+
+      <!-- RIGHT HUD: Fact Vault & Telemetry -->
+      <div class="lg:col-span-5 flex flex-col gap-3">
+        <div class="hud-interactive glass-panel p-5 flex flex-col h-[440px] shadow-2xl">
+          <!-- Tabs -->
+          <div class="flex items-center border-b border-slate-800 pb-2 mb-3 gap-1 overflow-x-auto">
+            <button onclick="switchTab('comm')" id="tabBtn-comm" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all flex items-center gap-1">
+              <span>💬</span> Comm
+            </button>
+            <button onclick="switchTab('docs')" id="tabBtn-docs" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all flex items-center gap-1">
+              <span>📚</span> Docs
+            </button>
+            <button onclick="switchTab('web')" id="tabBtn-web" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all flex items-center gap-1">
+              <span>🌐</span> Web
+            </button>
+            <button onclick="switchTab('memory')" id="tabBtn-memory" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 tab-active transition-all flex items-center gap-1">
+              <span>🧠</span> Facts
+            </button>
+            <button onclick="switchTab('diagnostics')" id="tabBtn-diagnostics" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all flex items-center gap-1">
+              <span>⚡</span> Telemetry
+            </button>
+            <button onclick="switchTab('media')" id="tabBtn-media" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all flex items-center gap-1">
+              <span>🎵</span> Media
+            </button>
+            <button onclick="switchTab('settings')" id="tabBtn-settings" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 transition-all flex items-center gap-1">
+              <span>⚙️</span> Settings
+            </button>
+          </div>
+
+          <!-- Tab: Communications (WhatsApp & Email) -->
+          <div id="tabContent-comm" class="tab-view hidden flex-1 flex flex-col gap-2.5 overflow-y-auto pr-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                <span>💬</span> Communications Center
+              </span>
+              <div class="flex items-center gap-1 text-[10px] bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+                <button onclick="switchCommMode('wa')" id="commModeBtn-wa" class="px-2 py-0.5 rounded bg-emerald-600 text-white font-medium transition-all">WhatsApp</button>
+                <button onclick="switchCommMode('mail')" id="commModeBtn-mail" class="px-2 py-0.5 rounded text-slate-400 hover:text-white font-medium transition-all">Email</button>
+                <button onclick="switchCommMode('contacts')" id="commModeBtn-contacts" class="px-2 py-0.5 rounded text-slate-400 hover:text-white font-medium transition-all">Contacts</button>
+                <button onclick="switchCommMode('config')" id="commModeBtn-config" class="px-2 py-0.5 rounded text-slate-400 hover:text-white font-medium transition-all">⚙️</button>
+              </div>
+            </div>
+
+            <!-- Sub-Panel: WhatsApp -->
+            <div id="commSub-wa" class="flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <input id="waRecipientInput" type="text" list="contactsDataList" placeholder="To: Name, 'Mom', or +919876543210..." class="flex-1 bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:border-emerald-500 font-sans">
+              </div>
+              <textarea id="waMessageInput" rows="3" placeholder="Type WhatsApp message..." class="w-full bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl p-3 border border-slate-800 focus:outline-none focus:border-emerald-500 font-sans resize-none"></textarea>
+              <div class="flex items-center justify-between pt-1">
+                <label class="flex items-center gap-1.5 text-[10px] text-slate-400 cursor-pointer select-none">
+                  <input type="checkbox" id="waAutoSendCheck" checked class="rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0">
+                  <span>⚡ Auto-send hands-free</span>
+                </label>
+                <button onclick="executeSendWhatsApp()" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center gap-1.5 shadow-lg shadow-emerald-600/30 transition-all active:scale-95">
+                  <span>🚀</span> Send WhatsApp
+                </button>
+              </div>
+            </div>
+
+            <!-- Sub-Panel: Email -->
+            <div id="commSub-mail" class="hidden flex flex-col gap-2">
+              <input id="mailToInput" type="text" list="contactsDataList" placeholder="To: Contact name or email address..." class="w-full bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl px-3 py-1.5 border border-slate-800 focus:outline-none focus:border-indigo-500 font-sans">
+              <input id="mailSubjectInput" type="text" placeholder="Subject line..." class="w-full bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl px-3 py-1.5 border border-slate-800 focus:outline-none focus:border-indigo-500 font-sans">
+              <textarea id="mailBodyInput" rows="3" placeholder="Email body or brief bullet points for AI polish..." class="w-full bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl p-3 border border-slate-800 focus:outline-none focus:border-indigo-500 font-sans resize-none"></textarea>
+              <div class="flex items-center justify-between pt-1">
+                <div class="flex items-center gap-2">
+                  <button onclick="executeDraftEmail()" class="px-2.5 py-1.5 rounded-xl bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-300 text-xs font-medium flex items-center gap-1 transition-all active:scale-95">
+                    <span>✍️</span> AI Polish
+                  </button>
+                  <label class="flex items-center gap-1.5 text-[10px] text-slate-400 cursor-pointer select-none">
+                    <input type="checkbox" id="mailAutoSendCheck" checked class="rounded bg-slate-900 border-slate-700 text-indigo-500 focus:ring-0">
+                    <span>⚡ Auto-send hands-free</span>
+                  </label>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <button onclick="executeCheckUnread()" title="Check Unread" class="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs transition-all">
+                    <span>📥</span> Inbox
+                  </button>
+                  <button onclick="executeSendEmail()" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition-all active:scale-95">
+                    <span>✉️</span> Send
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sub-Panel: Contacts Book -->
+            <div id="commSub-contacts" class="hidden flex flex-col gap-2 overflow-y-auto">
+              <div class="flex items-center gap-1.5">
+                <input id="contactSearchInput" type="text" placeholder="Search contacts..." oninput="filterContactsGui(this.value)" class="flex-1 bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl px-3 py-1.5 border border-slate-800 focus:outline-none focus:border-blue-500 font-sans">
+                <button onclick="toggleAddContactForm()" class="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs transition-all flex items-center gap-1">
+                  <span>➕</span> Add
+                </button>
+              </div>
+
+              <!-- Add Contact Inline Form -->
+              <div id="addContactForm" class="hidden p-3 rounded-xl border border-slate-800 bg-slate-950/90 flex flex-col gap-2">
+                <div class="grid grid-cols-2 gap-2">
+                  <input id="newContactName" type="text" placeholder="Full Name *" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:border-blue-500 font-sans">
+                  <input id="newContactNick" type="text" placeholder="Nickname (e.g. Mom)" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:border-blue-500 font-sans">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <input id="newContactPhone" type="text" placeholder="Phone (+91...)" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:border-blue-500 font-sans">
+                  <input id="newContactEmail" type="text" placeholder="Email" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:border-blue-500 font-sans">
+                </div>
+                <div class="flex justify-end gap-2 pt-1">
+                  <button onclick="toggleAddContactForm()" class="px-2.5 py-1 rounded-lg text-xs text-slate-400 hover:text-white">Cancel</button>
+                  <button onclick="executeSaveContact()" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs text-white font-medium">Save Contact</button>
+                </div>
+              </div>
+
+              <!-- Contacts Cards Container -->
+              <div id="contactsCardContainer" class="flex flex-col gap-1.5 overflow-y-auto max-h-[220px]">
+                <div class="text-xs text-slate-500 text-center py-4">Loading contacts...</div>
+              </div>
+            </div>
+
+            <!-- Sub-Panel: Email Settings & Credentials -->
+            <div id="commSub-config" class="hidden flex flex-col gap-2 text-xs">
+              <div class="p-3 rounded-xl border border-slate-800 bg-slate-950/80 flex flex-col gap-2">
+                <span class="font-semibold text-slate-200">Email & SMTP Setup</span>
+                <span class="text-[11px] text-slate-400">For direct sending & unread checks via Gmail/Outlook. (Default mail client works without credentials)</span>
+                <input id="cfgEmailAddr" type="text" placeholder="Your email (e.g. joshua@gmail.com)" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:border-indigo-500 font-sans">
+                <input id="cfgEmailPass" type="password" placeholder="App Password (16-char for Gmail)" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:border-indigo-500 font-sans">
+                <div class="grid grid-cols-2 gap-2">
+                  <input id="cfgSmtpHost" type="text" placeholder="SMTP Server" value="smtp.gmail.com" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 font-sans">
+                  <input id="cfgSmtpPort" type="number" placeholder="Port" value="587" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 font-sans">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <input id="cfgImapHost" type="text" placeholder="IMAP Server" value="imap.gmail.com" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 font-sans">
+                  <input id="cfgImapPort" type="number" placeholder="Port" value="993" class="bg-slate-900 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 border border-slate-800 font-sans">
+                </div>
+                <button onclick="executeSaveEmailConfig()" class="mt-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs text-white font-medium self-end">Save Settings</button>
+              </div>
+            </div>
+
+            <!-- Datalist for autocomplete -->
+            <datalist id="contactsDataList"></datalist>
+          </div>
+
+          <!-- Tab: Docs (Knowledge Vault) -->
+          <div id="tabContent-docs" class="tab-view hidden flex-1 flex flex-col gap-2.5 overflow-y-auto pr-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                <span>📚</span> Local Knowledge Vault (RAG)
+              </span>
+              <button onclick="loadIndexedDocuments()" class="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors">
+                <span>🔁</span> Refresh
+              </button>
+            </div>
+
+            <!-- Drag & Drop Zone -->
+            <div id="docDropZone" ondragover="event.preventDefault(); this.classList.add('border-blue-500', 'bg-blue-950/20')" ondragleave="this.classList.remove('border-blue-500', 'bg-blue-950/20')" ondrop="handleDocDrop(event)" class="border-2 border-dashed border-slate-800 hover:border-blue-500/80 rounded-2xl p-3.5 text-center transition-all bg-slate-950/40 cursor-pointer group" onclick="document.getElementById('docFileInput').click()">
+              <div class="flex flex-col items-center gap-1 pointer-events-none">
+                <span class="text-xl group-hover:scale-110 transition-transform">📄</span>
+                <span class="text-xs font-semibold text-slate-200">Drop PDFs, Resumes, Notes or Code</span>
+                <span class="text-[10px] text-slate-400 font-mono">.pdf, .docx, .py, .js, .md, .txt</span>
+              </div>
+              <input type="file" id="docFileInput" class="hidden" multiple accept=".pdf,.docx,.txt,.md,.py,.js,.ts,.html,.css,.java,.cpp,.c,.json,.csv,.sql" onchange="handleDocFileUpload(event)">
+            </div>
+
+            <!-- In-Tab Document Query Box -->
+            <div class="flex items-center gap-2">
+              <input id="docQueryInput" type="text" placeholder="Ask anything about your documents..." onkeydown="if(event.key==='Enter') executeDocQuery()" class="flex-1 bg-slate-950 text-xs text-slate-200 placeholder-slate-500 rounded-xl px-3 py-2 border border-slate-800 focus:outline-none focus:border-blue-500 font-sans">
+              <button onclick="executeDocQuery()" title="Search & Ask Documents" class="p-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-md shadow-blue-600/30">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              </button>
+            </div>
+
+            <!-- Document List -->
+            <div id="indexedDocsList" class="flex flex-col gap-2 overflow-y-auto flex-1">
+              <div class="p-4 rounded-xl border border-slate-800/80 bg-slate-950/30 text-center text-xs text-slate-500">
+                No documents loaded yet. Drop a PDF, resume, or code file above!
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: Memory -->
+          <div id="tabContent-memory" class="tab-view flex-1 flex flex-col gap-3 overflow-y-auto">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-300">Persistent Facts</span>
+              <span class="text-[10px] font-mono text-blue-400">facts_store.json</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <input id="newFactInput" type="text" placeholder="Add memory (e.g. 'Lives in Chennai')..." 
+                class="flex-1 bg-slate-950 text-xs text-slate-200 rounded-lg px-3 py-2 border border-slate-800 focus:outline-none focus:border-blue-500">
+              <button onclick="addFact()" class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white">
+                + Add
+              </button>
+            </div>
+            <div id="factsList" class="flex-1 space-y-2 overflow-y-auto pr-1">
+              <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs group">
+                <span class="text-slate-300">• User's name is Joshua</span>
+                <button onclick="this.parentElement.remove()" class="text-slate-500 hover:text-rose-400 text-xs">✕</button>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs group">
+                <span class="text-slate-300">• Preferred language: Tamil + English</span>
+                <button onclick="this.parentElement.remove()" class="text-slate-500 hover:text-rose-400 text-xs">✕</button>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs group">
+                <span class="text-slate-300">• 3D AI Assistant UI in progress</span>
+                <button onclick="this.parentElement.remove()" class="text-slate-500 hover:text-rose-400 text-xs">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: Diagnostics -->
+          <div id="tabContent-diagnostics" class="tab-view hidden flex-1 flex flex-col gap-3 overflow-y-auto">
+            <div class="grid grid-cols-3 gap-2 text-center text-xs">
+              <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                <span class="text-[10px] text-slate-400 font-mono">CPU LOAD</span>
+                <p class="text-sm font-bold font-mono text-blue-400 mt-1">14%</p>
+              </div>
+              <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                <span class="text-[10px] text-slate-400 font-mono">RAM USAGE</span>
+                <p class="text-sm font-bold font-mono text-purple-400 mt-1">48%</p>
+              </div>
+              <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                <span class="text-[10px] text-slate-400 font-mono">BATTERY</span>
+                <p class="text-sm font-bold font-mono text-emerald-400 mt-1">92% ⚡</p>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2">
+              <span class="text-[11px] font-semibold text-slate-300">Run Benchmarks</span>
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <button onclick="runBench('DuckDuckGo Search')" class="p-2.5 rounded-lg bg-slate-950 hover:bg-slate-900 border border-slate-800 text-left text-slate-300">
+                  🌐 Web Search
+                </button>
+                <button onclick="runBench('Diagnostics')" class="p-2.5 rounded-lg bg-slate-950 hover:bg-slate-900 border border-slate-800 text-left text-slate-300">
+                  📊 System Telemetry
+                </button>
+              </div>
+            </div>
+            <div class="flex-1 bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-[10px] text-slate-400 overflow-y-auto" id="benchOutput">
+              // Telemetry bench ready. Click a tool above to run.
+            </div>
+          </div>
+
+          <!-- Tab: Media -->
+          <div id="tabContent-media" class="tab-view hidden flex-1 flex flex-col gap-3 overflow-y-auto">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-300">Media & Playback</span>
+              <span id="mediaStatusBadge" class="text-[10px] font-mono text-emerald-400">Ready</span>
+            </div>
+
+            <!-- Global Hardware Media Keys -->
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2">
+              <span class="text-[11px] font-mono text-slate-400">Windows Global Controls</span>
+              <div class="grid grid-cols-4 gap-2">
+                <button onclick="triggerMediaControl('previous')" class="py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1 transition-all active:scale-95">
+                  ⏮️ Prev
+                </button>
+                <button onclick="triggerMediaControl('play_pause')" class="py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center justify-center gap-1 shadow-lg shadow-blue-600/30 transition-all active:scale-95">
+                  ⏯️ Play
+                </button>
+                <button onclick="triggerMediaControl('next')" class="py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1 transition-all active:scale-95">
+                  ⏭️ Next
+                </button>
+                <button onclick="triggerMediaControl('stop')" class="py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-rose-400 text-xs font-semibold flex items-center justify-center gap-1 transition-all active:scale-95">
+                  ⏹️ Stop
+                </button>
+              </div>
+            </div>
+
+            <!-- Spotify Quick Play -->
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-mono text-emerald-400 flex items-center gap-1">
+                  <span>🟢</span> Spotify Search & Play
+                </span>
+                <button onclick="triggerSpotifyQuick()" class="text-[10px] text-slate-400 hover:text-emerald-300 font-mono">Open App ↗</button>
+              </div>
+              <div class="flex items-center gap-2">
+                <input id="spotifyQueryInput" type="text" placeholder="Song, artist, or playlist..." 
+                  onkeydown="if(event.key==='Enter') triggerSpotifyPlay()"
+                  class="flex-1 bg-slate-900 text-xs text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 border border-slate-800 focus:outline-none focus:border-emerald-500">
+                <button onclick="triggerSpotifyPlay()" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white transition-all">
+                  Play
+                </button>
+              </div>
+            </div>
+
+            <!-- YouTube Quick Autoplay -->
+            <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-mono text-rose-400 flex items-center gap-1">
+                  <span>🔴</span> YouTube Video & Music
+                </span>
+                <button onclick="triggerYouTubeQuick()" class="text-[10px] text-slate-400 hover:text-rose-300 font-mono">Open Web ↗</button>
+              </div>
+              <div class="flex items-center gap-2">
+                <input id="youtubeQueryInput" type="text" placeholder="Search and autoplay video..." 
+                  onkeydown="if(event.key==='Enter') triggerYouTubePlay()"
+                  class="flex-1 bg-slate-900 text-xs text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 border border-slate-800 focus:outline-none focus:border-rose-500">
+                <button onclick="triggerYouTubePlay()" class="px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white transition-all">
+                  Play
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: Settings -->
+          <div id="tabContent-settings" class="tab-view hidden flex-1 flex flex-col gap-3 overflow-y-auto text-xs">
+            <div class="flex flex-col gap-1.5">
+              <label class="font-semibold text-slate-300">⚡ Voice Barge-In Profile</label>
+              <select id="settingBargeInMode" onchange="updateVoiceSetting('barge_in_mode', this.value)" class="bg-slate-950 text-slate-200 rounded-lg p-2 border border-slate-800 focus:border-cyan-500 outline-none">
+                <option value="off">Off / Spacebar & Orb Tap (Recommended for Speakers)</option>
+                <option value="headphones">Voice Barge-In (Headphones Mode)</option>
+                <option value="speakers">Voice Barge-In (Laptop Speakers Mode)</option>
+              </select>
+              <span class="text-[10px] text-slate-500">Spacebar, Escape, and clicking 3D Orb always interrupt instantly (&lt;10ms).</span>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <div class="flex items-center justify-between text-slate-300">
+                <span>🔊 Voice Volume:</span>
+                <span id="volumeLabel" class="font-mono text-cyan-400">100%</span>
+              </div>
+              <input id="settingVolume" type="range" min="0" max="100" step="5" value="100" oninput="document.getElementById('volumeLabel').innerText=this.value+'%'" onchange="updateVoiceSetting('volume', this.value)" class="accent-cyan-500 cursor-pointer">
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <div class="flex items-center justify-between text-slate-300">
+                <span>⚡ Speech Speed Rate:</span>
+                <span id="rateLabel" class="font-mono text-blue-400">+0%</span>
+              </div>
+              <input id="settingRate" type="range" min="-20" max="40" step="5" value="0" oninput="document.getElementById('rateLabel').innerText=(this.value>=0?'+':'')+this.value+'%'" onchange="updateVoiceSetting('rate', (this.value>=0?'+':'')+this.value+'%')" class="accent-blue-500 cursor-pointer">
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="font-semibold text-slate-300">English Neural Voice</label>
+              <select id="settingEnglishVoice" onchange="updateVoiceSetting('english_voice', this.value)" class="bg-slate-950 text-slate-200 rounded-lg p-2 border border-slate-800 focus:border-cyan-500 outline-none">
+                <option value="en-US-ChristopherNeural">Christopher (US English - Confident Male)</option>
+                <option value="en-IN-NeerjaNeural">Neerja (Indian English - Female)</option>
+                <option value="en-IN-PrabhatNeural">Prabhat (Indian English - Male)</option>
+                <option value="en-US-AvaNeural">Ava (US English - Natural Female)</option>
+                <option value="en-GB-SoniaNeural">Sonia (British English - Female)</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="font-semibold text-slate-300">Tamil Voice (தமிழ்)</label>
+              <select id="settingTamilVoice" onchange="updateVoiceSetting('tamil_voice', this.value)" class="bg-slate-950 text-slate-200 rounded-lg p-2 border border-slate-800 focus:border-cyan-500 outline-none">
+                <option value="ta-IN-PallaviNeural">Pallavi (Tamil - Female)</option>
+                <option value="ta-IN-ValluvarNeural">Valluvar (Tamil - Male)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Tab: Web Automation, Live Prices & Scraping -->
+          <div id="tabContent-web" class="tab-view hidden flex-1 flex flex-col gap-2.5 overflow-y-auto pr-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                <span>🌐</span> Web Automation & Price Radar
+              </span>
+              <div class="flex items-center gap-1 text-[10px] bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+                <button onclick="switchWebSubmode('price')" id="webSubBtn-price" class="px-2 py-0.5 rounded bg-blue-600 text-white font-medium transition-all">Prices</button>
+                <button onclick="switchWebSubmode('scrape')" id="webSubBtn-scrape" class="px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 transition-all">Scraper</button>
+                <button onclick="switchWebSubmode('capture')" id="webSubBtn-capture" class="px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 transition-all">Capture</button>
+              </div>
+            </div>
+
+            <!-- Subview 1: Price Radar -->
+            <div id="webSubView-price" class="flex flex-col gap-2.5">
+              <!-- Search & Store Controls -->
+              <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <input id="priceQueryInput" type="text" placeholder="Search product (e.g. iPhone 15, Sony XM5)..."
+                    onkeydown="if(event.key==='Enter') executePriceCheckGui()"
+                    class="flex-1 bg-slate-900 text-xs text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 border border-slate-800 focus:outline-none focus:border-cyan-500">
+                  <button onclick="executePriceCheckGui()" class="px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-xs font-semibold text-white transition-all shadow-lg shadow-cyan-600/30 active:scale-95 flex items-center gap-1">
+                    <span>⚡</span> Compare
+                  </button>
+                </div>
+                <!-- Quick Tags & Store Filters -->
+                <div class="flex items-center justify-between flex-wrap gap-1 text-[10px]">
+                  <div class="flex items-center gap-2">
+                    <label class="flex items-center gap-1 text-slate-400 cursor-pointer">
+                      <input type="checkbox" id="storeFilterAmazon" checked class="rounded border-slate-700 text-amber-500 focus:ring-0">
+                      <span>Amazon.in</span>
+                    </label>
+                    <label class="flex items-center gap-1 text-slate-400 cursor-pointer">
+                      <input type="checkbox" id="storeFilterFlipkart" checked class="rounded border-slate-700 text-blue-500 focus:ring-0">
+                      <span>Flipkart</span>
+                    </label>
+                  </div>
+                  <div class="flex items-center gap-1 text-slate-500 overflow-x-auto">
+                    <span>Quick:</span>
+                    <button onclick="quickPriceCheck('iPhone 15 128GB')" class="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300">iPhone 15</button>
+                    <button onclick="quickPriceCheck('Sony WH-1000XM5')" class="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300">Sony XM5</button>
+                    <button onclick="quickPriceCheck('MacBook Air M3')" class="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300">MacBook</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Spoken Summary / Best Deal Banner -->
+              <div id="priceDealBanner" class="hidden p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-xs text-emerald-300 flex items-start gap-2">
+                <span class="text-sm">🏷️</span>
+                <div class="flex-1">
+                  <p id="priceDealSummary" class="font-medium text-emerald-200"></p>
+                </div>
+              </div>
+
+              <!-- Results Cards Container -->
+              <div id="priceCardsContainer" class="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1">
+                <div class="p-4 text-center text-slate-500 text-xs border border-dashed border-slate-800/80 rounded-xl">
+                  Enter a product name above to compare live prices across Amazon and Flipkart.
+                </div>
+              </div>
+            </div>
+
+            <!-- Subview 2: Smart Scraper & Reader -->
+            <div id="webSubView-scrape" class="hidden flex flex-col gap-2.5">
+              <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <input id="scrapeUrlInput" type="text" placeholder="https://en.wikipedia.org/wiki/Artificial_intelligence"
+                    onkeydown="if(event.key==='Enter') executeScrapeGui()"
+                    class="flex-1 bg-slate-900 text-xs text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 border border-slate-800 focus:outline-none focus:border-indigo-500 font-mono">
+                  <button onclick="executeScrapeGui()" class="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition-all shadow-lg shadow-indigo-600/30 active:scale-95 flex items-center gap-1">
+                    <span>📖</span> Extract
+                  </button>
+                </div>
+                <div class="flex items-center justify-between text-[10px] text-slate-400">
+                  <div class="flex items-center gap-2">
+                    <span>Mode:</span>
+                    <label class="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" name="scrapeModeRadio" value="content" checked class="text-indigo-500">
+                      <span>Article Text</span>
+                    </label>
+                    <label class="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" name="scrapeModeRadio" value="tables" class="text-indigo-500">
+                      <span>Data Tables</span>
+                    </label>
+                    <label class="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" name="scrapeModeRadio" value="links" class="text-indigo-500">
+                      <span>Links</span>
+                    </label>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <button onclick="quickScrape('https://en.wikipedia.org/wiki/Artificial_intelligence')" class="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300">Wikipedia AI</button>
+                    <button onclick="quickScrape('https://news.ycombinator.com')" class="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300">HackerNews</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Scrape Result Reader View -->
+              <div id="scrapeResultContainer" class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2 max-h-[200px] overflow-y-auto">
+                <div id="scrapeResultHeader" class="hidden flex items-center justify-between border-b border-slate-800 pb-1.5 text-[11px]">
+                  <span id="scrapeResultTitle" class="font-semibold text-slate-200 truncate max-w-[200px]"></span>
+                  <span id="scrapeResultWordCount" class="text-slate-400 font-mono"></span>
+                </div>
+                <div id="scrapeResultBody" class="text-xs text-slate-300 font-mono whitespace-pre-wrap leading-relaxed">
+                  <span class="text-slate-500">Enter a website URL above to scrape clean text, tables, or links without ads.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Subview 3: Web Screenshot Capture -->
+            <div id="webSubView-capture" class="hidden flex flex-col gap-2.5">
+              <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <input id="captureUrlInput" type="text" placeholder="https://github.com"
+                    onkeydown="if(event.key==='Enter') executeWebCaptureGui()"
+                    class="flex-1 bg-slate-900 text-xs text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 border border-slate-800 focus:outline-none focus:border-rose-500 font-mono">
+                  <button onclick="executeWebCaptureGui()" class="px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white transition-all shadow-lg shadow-rose-600/30 active:scale-95 flex items-center gap-1">
+                    <span>📸</span> Capture
+                  </button>
+                </div>
+                <div class="flex items-center justify-between text-[10px] text-slate-400">
+                  <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="checkbox" id="captureFullPageCheck" class="rounded border-slate-700 text-rose-500 focus:ring-0">
+                    <span>Full-page capture (scrolls whole document)</span>
+                  </label>
+                  <button onclick="quickCapture('https://apple.com')" class="px-1.5 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300">Apple.com</button>
+                </div>
+              </div>
+
+              <!-- Capture Preview -->
+              <div id="capturePreviewContainer" class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col items-center justify-center min-h-[160px] max-h-[200px] overflow-hidden text-xs text-slate-500">
+                <div id="capturePreviewPlaceholder">
+                  <span>Enter a webpage URL and click Capture to generate a visual screenshot.</span>
+                </div>
+                <img id="capturePreviewImage" class="hidden max-h-[180px] w-auto rounded-lg border border-slate-700 object-contain shadow-lg" alt="Web Capture Preview" />
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- BOTTOM DOCK -->
+    <footer class="hud-interactive glass-panel px-5 py-3 flex flex-wrap items-center justify-between gap-4 max-w-[1400px] w-full mx-auto">
+      <div class="flex items-center gap-2 overflow-x-auto text-xs">
+        <button onclick="triggerScreenVision()" class="px-3 py-1.5 rounded-full bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-500/60 text-indigo-300 hover:text-white transition-all whitespace-nowrap flex items-center gap-1.5 font-medium shadow-lg shadow-indigo-500/20 active:scale-95">
+          <span>👁️</span> Inspect Screen
+        </button>
+        <button onclick="triggerScreenVision('Examine the active window, diagnose any error messages, and explain how to fix them', true)" class="px-3 py-1.5 rounded-full bg-rose-950/90 hover:bg-rose-900 border border-rose-500/60 text-rose-300 hover:text-white transition-all whitespace-nowrap flex items-center gap-1.5 font-medium shadow-lg shadow-rose-500/20 active:scale-95">
+          <span>🐛</span> Debug Error
+        </button>
+        <button onclick="triggerScreenVision('Transcribe, read, and summarize the document, text, or PDF visible on my screen', false)" class="px-3 py-1.5 rounded-full bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/60 text-emerald-300 hover:text-white transition-all whitespace-nowrap flex items-center gap-1.5 font-medium shadow-lg shadow-emerald-500/20 active:scale-95">
+          <span>📄</span> Read Document
+        </button>
+        <button onclick="insertPrompt('Check system diagnostics and battery')" class="px-3 py-1.5 rounded-full bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 transition-all whitespace-nowrap">
+          ⚡ Diagnostics
+        </button>
+        <button onclick="insertPrompt('Search latest AI news')" class="px-3 py-1.5 rounded-full bg-slate-950/80 hover:bg-slate-900 border border-slate-800 text-slate-300 transition-all whitespace-nowrap">
+          🌐 Tech News
+        </button>
+        <button onclick="insertPrompt('இன்றைய வானிலை என்ன?')" class="px-3 py-1.5 rounded-full bg-slate-950/80 hover:bg-slate-900 border border-purple-900/60 text-purple-300 transition-all whitespace-nowrap">
+          🗣️ தமிழ் செய்தி
+        </button>
+      </div>
+
+      <!-- Center Voice Spectrum Bars -->
+      <div class="flex items-center gap-1 h-5 px-3 rounded-full bg-slate-950/90 border border-slate-800">
+        <span class="w-1 h-2 bg-blue-500 rounded-full animate-bounce"></span>
+        <span class="w-1 h-4 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
+        <span class="w-1 h-3 bg-purple-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+        <span class="w-1 h-5 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+        <span class="w-1 h-2 bg-sky-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
+      </div>
+
+      <div class="flex items-center gap-2 text-xs text-slate-400 font-mono">
+        <span>Active Brain:</span>
+        <span class="text-blue-400 font-semibold">Nemotron-3-Ultra</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- High-Res Screen Vision Zoom Modal -->
+  <div id="visionModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex-col items-center justify-center p-6 transition-all" onclick="if(event.target===this) closeVisionModal()">
+    <div class="relative max-w-5xl w-full max-h-[90vh] bg-slate-950 border border-indigo-500/50 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
+      <div class="flex items-center justify-between px-5 py-3 border-b border-slate-800 bg-slate-900/80">
+        <div class="flex items-center gap-2">
+          <span class="text-indigo-400">👁️</span>
+          <span class="text-xs font-mono font-bold text-slate-200">IGIRS Vision • High-Res Capture Inspector</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="downloadModalImage()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 font-mono flex items-center gap-1 transition-colors">
+            <span>💾</span> Save
+          </button>
+          <button onclick="closeVisionModal()" class="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-900/80 text-slate-400 hover:text-white transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="flex-1 overflow-auto p-4 flex items-center justify-center bg-black/60">
+        <img id="visionModalImg" src="" alt="Screen Vision Zoom" class="max-w-full max-h-[78vh] object-contain rounded-lg shadow-lg border border-slate-800">
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ ZERO-DEPENDENCY NATIVE WEBGL 3D ORB ENGINE ═══════════════════ -->
+  <script>
+    const canvas = document.getElementById('webglCanvas');
+    const gl = canvas.getContext('webgl', { antialias: true, alpha: true, preserveDrawingBuffer: true }) || canvas.getContext('experimental-webgl', { preserveDrawingBuffer: true });
+    window.canvas = canvas;
+    window.gl = gl;
+
+    if (!gl) {
+      alert('WebGL is not supported in this browser.');
+    }
+
+    // Dynamic State Colors
+    const stateColors = {
+      standby: [0.227, 0.525, 1.0],   // #3a86ff Cyber Blue
+      listening: [0.0, 0.941, 1.0],   // #00f0ff Electric Cyan
+      thinking: [1.0, 0.0, 0.431],    // #ff006e Flame Neon Red (matches user screenshot!)
+      speaking: [0.514, 0.220, 0.925]  // #8338ec Void Purple
+    };
+
+    let curColor = [0.227, 0.525, 1.0];
+    let targetColor = [0.227, 0.525, 1.0];
+    let currentVoiceState = 'standby';
+    let speechAnimTimer = 0;
+    let scaleAnim = 1.0;
+    let isAlwaysListening = false;
+
+    // ═══════════════════ ADVANCED 3D MATRIX MATHEMATICS ═══════════════════
+    function createPerspectiveMatrix(fov, aspect, near, far) {
+      const f = Math.tan(Math.PI * 0.5 - 0.5 * fov);
+      const rangeInv = 1.0 / (near - far);
+      return [
+        f / aspect, 0, 0, 0,
+        0, f, 0, 0,
+        0, 0, (near + far) * rangeInv, -1,
+        0, 0, near * far * rangeInv * 2, 0
+      ];
+    }
+
+    function mat4Identity() {
+      return [
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1
+      ];
+    }
+
+    function mat4Multiply(a, b) {
+      const out = new Float32Array(16);
+      for (let i = 0; i < 4; i++) {
+        const ai0 = a[i], ai1 = a[i + 4], ai2 = a[i + 8], ai3 = a[i + 12];
+        out[i]      = ai0 * b[0] + ai1 * b[1] + ai2 * b[2] + ai3 * b[3];
+        out[i + 4]  = ai0 * b[4] + ai1 * b[5] + ai2 * b[6] + ai3 * b[7];
+        out[i + 8]  = ai0 * b[8] + ai1 * b[9] + ai2 * b[10] + ai3 * b[11];
+        out[i + 12] = ai0 * b[12] + ai1 * b[13] + ai2 * b[14] + ai3 * b[15];
+      }
+      return out;
+    }
+
+    function mat4RotateX(m, rad) {
+      const c = Math.cos(rad), s = Math.sin(rad);
+      const r = [
+        1, 0, 0, 0,
+        0, c, s, 0,
+        0, -s, c, 0,
+        0, 0, 0, 1
+      ];
+      return mat4Multiply(m, r);
+    }
+
+    function mat4RotateY(m, rad) {
+      const c = Math.cos(rad), s = Math.sin(rad);
+      const r = [
+        c, 0, -s, 0,
+        0, 1, 0, 0,
+        s, 0, c, 0,
+        0, 0, 0, 1
+      ];
+      return mat4Multiply(m, r);
+    }
+
+    function mat4RotateZ(m, rad) {
+      const c = Math.cos(rad), s = Math.sin(rad);
+      const r = [
+        c, s, 0, 0,
+        -s, c, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1
+      ];
+      return mat4Multiply(m, r);
+    }
+
+    function mat4Translate(m, x, y, z) {
+      const t = [
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        x, y, z, 1
+      ];
+      return mat4Multiply(m, t);
+    }
+
+    function mat4Scale(m, sx, sy, sz) {
+      const s = [
+        sx, 0, 0, 0,
+        0, sy, 0, 0,
+        0, 0, sz, 0,
+        0, 0, 0, 1
+      ];
+      return mat4Multiply(m, s);
+    }
+
+    // ═══════════════════ GLSL SHADER DEFINITIONS ═══════════════════
+
+    // 1. Organic Liquid Plasma Core Shaders
+    const plasmaVS = `
+      precision mediump float;
+      attribute vec3 aPosition;
+      attribute vec3 aNormal;
+      uniform mat4 uProjection;
+      uniform mat4 uModelView;
+      uniform float uTime;
+      uniform float uAudioReact;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying float vDisplacement;
+
+      void main() {
+        float wave1 = sin(aPosition.x * 2.2 + uTime * 2.8) * cos(aPosition.y * 2.4 + uTime * 2.5);
+        float wave2 = sin(aPosition.z * 3.0 + uTime * 3.2) * cos(aPosition.x * 2.0 - uTime * 2.2);
+        float wave3 = sin((aPosition.x + aPosition.y + aPosition.z) * 2.2 + uTime * 4.0);
+
+        float disp = (wave1 * 0.45 + wave2 * 0.35 + wave3 * 0.20) * (0.12 + uAudioReact * 0.50);
+        vDisplacement = disp;
+
+        vec3 displacedPos = aPosition + aNormal * disp;
+        vNormal = mat3(uModelView) * aNormal;
+        vec4 mvPos = uModelView * vec4(displacedPos, 1.0);
+        vPosition = mvPos.xyz;
+        gl_Position = uProjection * mvPos;
+      }
+    `;
+
+    const plasmaFS = `
+      precision mediump float;
+      uniform vec3 uColor;
+      uniform float uTime;
+      uniform float uAudioReact;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying float vDisplacement;
+
+      void main() {
+        vec3 norm = normalize(vNormal);
+        vec3 viewDir = normalize(-vPosition);
+
+        float fresnel = pow(max(0.0, 1.0 - dot(norm, viewDir)), 2.6);
+
+        float vein = sin(vDisplacement * 18.0 + uTime * 4.5) * 0.5 + 0.5;
+        vec3 hotWhite = vec3(0.96, 0.98, 1.0);
+        vec3 plasmaEdge = mix(uColor, hotWhite, fresnel * 0.70 + vein * 0.30);
+        vec3 deepColor = mix(uColor * 0.35, uColor, 0.5 + 0.5 * sin(uTime * 2.0));
+        vec3 finalColor = mix(deepColor, plasmaEdge, fresnel);
+
+        float alpha = clamp(0.74 + fresnel * 0.26 + uAudioReact * 0.20, 0.0, 1.0);
+        gl_FragColor = vec4(finalColor * (1.15 + uAudioReact * 0.65), alpha);
+      }
+    `;
+
+    // 2. Holographic Matrix Wireframe Shader (ripples in sync with core)
+    const wireFS = `
+      precision mediump float;
+      uniform vec3 uColor;
+      uniform float uTime;
+      uniform float uAudioReact;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying float vDisplacement;
+
+      void main() {
+        float shimmer = 0.75 + 0.45 * sin(vDisplacement * 22.0 + uTime * 5.0);
+        vec3 col = uColor * (1.25 + uAudioReact * 0.8) * shimmer;
+        gl_FragColor = vec4(col, 0.80);
+      }
+    `;
+
+    // 3. Gyroscopic Tech Rings Shader
+    const ringVS = `
+      precision mediump float;
+      attribute vec3 aPosition;
+      uniform mat4 uProjection;
+      uniform mat4 uModelView;
+      void main() {
+        gl_Position = uProjection * uModelView * vec4(aPosition, 1.0);
+      }
+    `;
+
+    const ringFS = `
+      precision mediump float;
+      uniform vec3 uColor;
+      uniform float uAlpha;
+      void main() {
+        gl_FragColor = vec4(uColor, uAlpha);
+      }
+    `;
+
+    // 4. Orbital Tech Satellite Nodes Shader
+    const nodeVS = `
+      precision mediump float;
+      attribute vec3 aPosition;
+      uniform mat4 uProjection;
+      uniform mat4 uModelView;
+      uniform float uPointSize;
+      void main() {
+        vec4 pos = uProjection * uModelView * vec4(aPosition, 1.0);
+        gl_Position = pos;
+        gl_PointSize = clamp(uPointSize / max(0.1, pos.w), 1.0, 48.0);
+      }
+    `;
+
+    const nodeFS = `
+      precision mediump float;
+      uniform vec3 uColor;
+      void main() {
+        float d = length(gl_PointCoord - vec2(0.5));
+        if (d > 0.5) discard;
+        float alpha = clamp((0.5 - d) * 2.2, 0.0, 1.0);
+        gl_FragColor = vec4(uColor, alpha);
+      }
+    `;
+
+    // 5. Atmospheric Corona Glow Shader
+    const atmosphereVS = `
+      precision mediump float;
+      attribute vec3 aPosition;
+      attribute vec3 aNormal;
+      uniform mat4 uProjection;
+      uniform mat4 uModelView;
+      varying vec3 vNormal;
+      void main() {
+        vNormal = mat3(uModelView) * aNormal;
+        gl_Position = uProjection * uModelView * vec4(aPosition, 1.0);
+      }
+    `;
+
+    const atmosphereFS = `
+      precision mediump float;
+      uniform vec3 uGlowColor;
+      varying vec3 vNormal;
+      void main() {
+        vec3 norm = normalize(vNormal);
+        float intensity = pow(max(0.0, 0.74 - dot(norm, vec3(0.0, 0.0, 1.0))), 2.2);
+        gl_FragColor = vec4(uGlowColor * 1.35, intensity * 0.92);
+      }
+    `;
+
+    // 6. Deep Space Starfield Shaders
+    const starsVS = `
+      precision mediump float;
+      attribute vec3 aPosition;
+      uniform mat4 uProjection;
+      uniform mat4 uModelView;
+      void main() {
+        vec4 pos = uProjection * uModelView * vec4(aPosition, 1.0);
+        gl_Position = pos;
+        gl_PointSize = clamp(480.0 / max(0.1, pos.w), 1.0, 8.0);
+      }
+    `;
+
+    const starsFS = `
+      precision mediump float;
+      void main() {
+        float d = length(gl_PointCoord - vec2(0.5));
+        if (d > 0.5) discard;
+        float alpha = clamp((0.5 - d) * 2.0, 0.0, 0.9);
+        gl_FragColor = vec4(0.92, 0.96, 1.0, alpha);
+      }
+    `;
+
+    function compileShader(type, src) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, src);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(shader));
+      }
+      return shader;
+    }
+
+    function createProgram(vsSrc, fsSrc, hasNormal) {
+      const vs = compileShader(gl.VERTEX_SHADER, vsSrc);
+      const fs = compileShader(gl.FRAGMENT_SHADER, fsSrc);
+      const prog = gl.createProgram();
+      gl.attachShader(prog, vs);
+      gl.attachShader(prog, fs);
+
+      // Lock attribute locations strictly for consistency across all programs
+      gl.bindAttribLocation(prog, 0, 'aPosition');
+      if (hasNormal) {
+        gl.bindAttribLocation(prog, 1, 'aNormal');
+      }
+
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        console.error(gl.getProgramInfoLog(prog));
+      }
+      return prog;
+    }
+
+    const plasmaProg = createProgram(plasmaVS, plasmaFS, true);
+    const wireProg = createProgram(plasmaVS, wireFS, true);
+    const ringProg = createProgram(ringVS, ringFS, false);
+    const nodeProg = createProgram(nodeVS, nodeFS, false);
+    const atmosphereProg = createProgram(atmosphereVS, atmosphereFS, true);
+    const starsProg = createProgram(starsVS, starsFS, false);
+
+    window.plasmaProg = plasmaProg;
+    window.wireProg = wireProg;
+    window.ringProg = ringProg;
+    window.nodeProg = nodeProg;
+    window.atmosphereProg = atmosphereProg;
+    window.starsProg = starsProg;
+
+    // ═══════════════════ GEOMETRY BUILDERS ═══════════════════
+
+    function buildSphere(radius, lats, lons) {
+      const positions = [];
+      const normals = [];
+      const lineIndices = [];
+      const triIndices = [];
+
+      for (let i = 0; i <= lats; i++) {
+        const theta = (i * Math.PI) / lats;
+        const sinTheta = Math.sin(theta);
+        const cosTheta = Math.cos(theta);
+
+        for (let j = 0; j <= lons; j++) {
+          const phi = (j * 2 * Math.PI) / lons;
+          const x = radius * sinTheta * Math.cos(phi);
+          const y = radius * cosTheta;
+          const z = radius * sinTheta * Math.sin(phi);
+
+          positions.push(x, y, z);
+          normals.push(x / radius, y / radius, z / radius);
+        }
+      }
+
+      for (let i = 0; i < lats; i++) {
+        for (let j = 0; j < lons; j++) {
+          const first = i * (lons + 1) + j;
+          const second = first + lons + 1;
+
+          lineIndices.push(first, first + 1);
+          lineIndices.push(first, second);
+
+          triIndices.push(first, second, first + 1);
+          triIndices.push(second, second + 1, first + 1);
+        }
+      }
+
+      return {
+        positions: new Float32Array(positions),
+        normals: new Float32Array(normals),
+        lineIndices: new Uint16Array(lineIndices),
+        triIndices: new Uint16Array(triIndices)
+      };
+    }
+
+    function buildTechRing(radius, segments, dashRatio) {
+      const positions = [];
+      for (let i = 0; i < segments; i++) {
+        if ((i % 8) < (8 * dashRatio)) {
+          const theta1 = (i / segments) * Math.PI * 2;
+          const theta2 = ((i + 1) / segments) * Math.PI * 2;
+          positions.push(
+            Math.cos(theta1) * radius, 0, Math.sin(theta1) * radius,
+            Math.cos(theta2) * radius, 0, Math.sin(theta2) * radius
+          );
+        }
+      }
+      return new Float32Array(positions);
+    }
+
+    function buildOrbitNodes(radius, count) {
+      const positions = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        const theta = (i / count) * Math.PI * 2;
+        positions[i * 3 + 0] = Math.cos(theta) * radius;
+        positions[i * 3 + 1] = 0;
+        positions[i * 3 + 2] = Math.sin(theta) * radius;
+      }
+      return positions;
+    }
+
+    // Build geometries
+    const plasmaSphere = buildSphere(4.75, 42, 42);
+    const atmosphereSphere = buildSphere(5.35, 36, 36);
+
+    const ring1Verts = buildTechRing(5.6, 128, 0.75);
+    const ring2Verts = buildTechRing(6.4, 144, 0.60);
+    const ring3Verts = buildTechRing(7.2, 160, 0.50);
+
+    const nodes1Verts = buildOrbitNodes(5.6, 4);
+    const nodes2Verts = buildOrbitNodes(6.4, 6);
+    const nodes3Verts = buildOrbitNodes(7.2, 8);
+
+    // Dynamic Equatorial Waveform Equalizer
+    const waveCount = 96;
+    const wavePositions = new Float32Array(waveCount * 2 * 3);
+
+    // Buffers for Plasma Sphere
+    const plasmaPosBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, plasmaPosBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, plasmaSphere.positions, gl.STATIC_DRAW);
+
+    const plasmaNormBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, plasmaNormBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, plasmaSphere.normals, gl.STATIC_DRAW);
+
+    const plasmaIdxBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, plasmaIdxBuf);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, plasmaSphere.triIndices, gl.STATIC_DRAW);
+
+    const wireIdxBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wireIdxBuf);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, plasmaSphere.lineIndices, gl.STATIC_DRAW);
+
+    // Buffers for Atmosphere
+    const atPosBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, atPosBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, atmosphereSphere.positions, gl.STATIC_DRAW);
+
+    const atNormBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, atNormBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, atmosphereSphere.normals, gl.STATIC_DRAW);
+
+    const atIdxBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, atIdxBuf);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, atmosphereSphere.triIndices, gl.STATIC_DRAW);
+
+    // Buffers for Tech Rings
+    const ring1Buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, ring1Buf);
+    gl.bufferData(gl.ARRAY_BUFFER, ring1Verts, gl.STATIC_DRAW);
+
+    const ring2Buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, ring2Buf);
+    gl.bufferData(gl.ARRAY_BUFFER, ring2Verts, gl.STATIC_DRAW);
+
+    const ring3Buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, ring3Buf);
+    gl.bufferData(gl.ARRAY_BUFFER, ring3Verts, gl.STATIC_DRAW);
+
+    // Buffers for Orbiting Nodes
+    const nodes1Buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, nodes1Buf);
+    gl.bufferData(gl.ARRAY_BUFFER, nodes1Verts, gl.STATIC_DRAW);
+
+    const nodes2Buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, nodes2Buf);
+    gl.bufferData(gl.ARRAY_BUFFER, nodes2Verts, gl.STATIC_DRAW);
+
+    const nodes3Buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, nodes3Buf);
+    gl.bufferData(gl.ARRAY_BUFFER, nodes3Verts, gl.STATIC_DRAW);
+
+    // Buffer for Audio Waveform
+    const waveBuf = gl.createBuffer();
+
+    // Starfield Points (8,000 stars)
+    const starCount = 8000;
+    const starPositions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      starPositions[i * 3 + 0] = (Math.random() - 0.5) * 800;
+      starPositions[i * 3 + 1] = (Math.random() - 0.5) * 800;
+      starPositions[i * 3 + 2] = (Math.random() - 0.5) * 800;
+    }
+    const starPosBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, starPosBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, starPositions, gl.STATIC_DRAW);
+
+    // ═══════════════════ INTERACTIVE ZOOM & ROTATION SYSTEM ═══════════════════
+    let rotX = 0;
+    let rotY = 0;
+    let isDragging = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+
+    let zoomScale = 1.0;
+    let targetZoom = 1.0;
+    const MIN_ZOOM = 0.35;  // Miniature compact core
+    const MAX_ZOOM = 2.80;  // Colossal screen-filling plasma sun
+
+    function setZoom(val, instant = false) {
+      targetZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, val));
+      if (instant) zoomScale = targetZoom;
+      updateZoomUI();
+    }
+
+    function updateZoomUI() {
+      const el = document.getElementById('zoomPercent');
+      if (el) el.textContent = `${Math.round(targetZoom * 100)}%`;
+    }
+
+    // Floating Zoom Button Handlers
+    document.getElementById('zoomInBtn')?.addEventListener('click', () => setZoom(targetZoom + 0.2));
+    document.getElementById('zoomOutBtn')?.addEventListener('click', () => setZoom(targetZoom - 0.2));
+    document.getElementById('zoomResetBtn')?.addEventListener('click', () => setZoom(1.0));
+
+    // Mouse Wheel Zoom Listener
+    window.addEventListener('wheel', (e) => {
+      // Don't zoom orb if scrolling inside chat bubbles or other scrollable panels
+      if (e.target.closest('#chatMessages, #notesContainer, .overflow-y-auto')) {
+        return;
+      }
+      e.preventDefault();
+      const zoomDelta = e.deltaY < 0 ? 0.12 : -0.12;
+      setZoom(targetZoom + zoomDelta);
+    }, { passive: false });
+
+    // Double-click on background or orb to reset zoom
+    window.addEventListener('dblclick', (e) => {
+      if (!e.target.closest('.hud-interactive') || e.target.id === 'webglCanvas') {
+        setZoom(1.0);
+      }
+    });
+
+    window.addEventListener('mousedown', (e) => {
+      if (!e.target.closest('.hud-interactive')) {
+        isDragging = true;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - lastMouseX;
+      const dy = e.clientY - lastMouseY;
+      rotY += dx * 0.005;
+      rotX += dy * 0.005;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+    });
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
+    // Touch & Trackpad Pinch-To-Zoom + Single Touch Drag
+    let initialPinchDistance = null;
+    let initialPinchZoom = 1.0;
+
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        initialPinchDistance = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        initialPinchZoom = targetZoom;
+      } else if (e.touches.length === 1 && !e.target.closest('.hud-interactive')) {
+        isDragging = true;
+        lastMouseX = e.touches[0].clientX;
+        lastMouseY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2 && initialPinchDistance) {
+        const currentDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const ratio = currentDist / initialPinchDistance;
+        setZoom(initialPinchZoom * ratio);
+      } else if (isDragging && e.touches.length === 1) {
+        const dx = e.touches[0].clientX - lastMouseX;
+        const dy = e.touches[0].clientY - lastMouseY;
+        rotY += dx * 0.005;
+        rotX += dy * 0.005;
+        lastMouseX = e.touches[0].clientX;
+        lastMouseY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', (e) => {
+      if (e.touches.length < 2) initialPinchDistance = null;
+      if (e.touches.length === 0) isDragging = false;
+    });
+
+    // Keyboard Shortcuts (+, -, 0) when not typing in text fields
+    window.addEventListener('keydown', (e) => {
+      if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        return;
+      }
+      if (e.key === '+' || e.key === '=') {
+        setZoom(targetZoom + 0.15);
+      } else if (e.key === '-' || e.key === '_') {
+        setZoom(targetZoom - 0.15);
+      } else if (e.key === '0') {
+        setZoom(1.0);
+      }
+    });
+
+    // ═══════════════════ RENDER LOOP ═══════════════════
+    let pulseTime = 0;
+    let ringAngle1 = 0;
+    let ringAngle2 = 0;
+    let ringAngle3 = 0;
+
+    function render() {
+      if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        gl.viewport(0, 0, canvas.width, canvas.height);
+      }
+
+      // Smooth color transition
+      for (let i = 0; i < 3; i++) {
+        curColor[i] += (targetColor[i] - curColor[i]) * 0.05;
+      }
+
+      gl.clearColor(0.012, 0.016, 0.028, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.enable(gl.DEPTH_TEST);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE); // Additive luminous glow blending
+
+      const aspect = canvas.width / canvas.height;
+      const proj = createPerspectiveMatrix((60 * Math.PI) / 180, aspect, 0.1, 1500);
+
+      pulseTime += 0.025;
+      let audioReact = 0.05;
+
+      // ═══════════════════ DYNAMIC VOICE STATE ANIMATION ═══════════════════
+      if (currentVoiceState === 'speaking') {
+        speechAnimTimer += 0.085;
+        audioReact = 0.75 + Math.sin(speechAnimTimer * 5.0) * 0.25;
+        scaleAnim = 1.0 + Math.sin(speechAnimTimer * 3.5) * 0.06;
+        rotY += 0.008;
+        rotX += Math.sin(speechAnimTimer * 2.0) * 0.002;
+        ringAngle1 += 0.025;
+        ringAngle2 -= 0.030;
+        ringAngle3 += 0.018;
+      } else if (currentVoiceState === 'listening') {
+        speechAnimTimer += 0.04;
+        audioReact = 0.25 + Math.sin(speechAnimTimer * 3.0) * 0.12;
+        scaleAnim = 1.0 + Math.sin(speechAnimTimer * 2.2) * 0.04;
+        rotY += 0.004;
+        ringAngle1 += 0.012;
+        ringAngle2 -= 0.015;
+        ringAngle3 += 0.008;
+      } else if (currentVoiceState === 'thinking') {
+        speechAnimTimer += 0.07;
+        audioReact = 0.40 + Math.sin(speechAnimTimer * 6.0) * 0.20;
+        scaleAnim = 1.0 + Math.sin(speechAnimTimer * 4.5) * 0.05;
+        rotY += 0.018;
+        ringAngle1 += 0.055;
+        ringAngle2 -= 0.065;
+        ringAngle3 += 0.045;
+      } else {
+        speechAnimTimer += 0.012;
+        audioReact = 0.06 + Math.sin(pulseTime * 1.5) * 0.03;
+        scaleAnim += (1.0 - scaleAnim) * 0.08;
+        rotY += 0.0025;
+        ringAngle1 += 0.007;
+        ringAngle2 -= 0.009;
+        ringAngle3 += 0.005;
+      }
+
+      // Smooth Zoom Interpolation (Lerp)
+      zoomScale += (targetZoom - zoomScale) * 0.12;
+      const finalScale = scaleAnim * zoomScale;
+
+      // Base Scene ModelView Matrix
+      let baseMV = mat4Identity();
+      baseMV = mat4Translate(baseMV, 0, 0, -11.5);
+      baseMV = mat4RotateX(baseMV, rotX);
+      baseMV = mat4RotateY(baseMV, rotY);
+      baseMV = mat4Scale(baseMV, finalScale, finalScale, finalScale);
+
+      // 1. Draw Starfield
+      gl.useProgram(starsProg);
+      gl.enableVertexAttribArray(0);
+      gl.disableVertexAttribArray(1);
+      gl.bindBuffer(gl.ARRAY_BUFFER, starPosBuf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+      let starMV = mat4Identity();
+      starMV = mat4Translate(starMV, 0, 0, -11.5);
+      starMV = mat4RotateY(starMV, rotY * 0.15);
+      gl.uniformMatrix4fv(gl.getUniformLocation(starsProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(starsProg, 'uModelView'), false, starMV);
+      gl.drawArrays(gl.POINTS, 0, starCount);
+
+      // 2. Draw Liquid Plasma Solid Core
+      gl.useProgram(plasmaProg);
+      gl.enableVertexAttribArray(0);
+      gl.enableVertexAttribArray(1);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, plasmaPosBuf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, plasmaNormBuf);
+      gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, plasmaIdxBuf);
+
+      gl.uniformMatrix4fv(gl.getUniformLocation(plasmaProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(plasmaProg, 'uModelView'), false, baseMV);
+      gl.uniform1f(gl.getUniformLocation(plasmaProg, 'uTime'), pulseTime);
+      gl.uniform1f(gl.getUniformLocation(plasmaProg, 'uAudioReact'), audioReact);
+      gl.uniform3f(gl.getUniformLocation(plasmaProg, 'uColor'), curColor[0], curColor[1], curColor[2]);
+      gl.drawElements(gl.TRIANGLES, plasmaSphere.triIndices.length, gl.UNSIGNED_SHORT, 0);
+
+      // 3. Draw Holographic Matrix Wireframe Grid
+      gl.useProgram(wireProg);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wireIdxBuf);
+
+      gl.uniformMatrix4fv(gl.getUniformLocation(wireProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(wireProg, 'uModelView'), false, baseMV);
+      gl.uniform1f(gl.getUniformLocation(wireProg, 'uTime'), pulseTime);
+      gl.uniform1f(gl.getUniformLocation(wireProg, 'uAudioReact'), audioReact);
+      gl.uniform3f(gl.getUniformLocation(wireProg, 'uColor'), curColor[0] * 1.25, curColor[1] * 1.25, curColor[2] * 1.25);
+      gl.drawElements(gl.LINES, plasmaSphere.lineIndices.length, gl.UNSIGNED_SHORT, 0);
+
+      // Disable normal attribute for non-normal shaders
+      gl.disableVertexAttribArray(1);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+      // 4. Draw Gyroscopic Tech Rings & Orbiting Nodes
+      // --- Ring 1: Inner Gimbal (Tilted 22°) ---
+      let ring1MV = mat4Identity();
+      ring1MV = mat4Translate(ring1MV, 0, 0, -11.5);
+      ring1MV = mat4RotateX(ring1MV, rotX + 0.38);
+      ring1MV = mat4RotateY(ring1MV, rotY + ringAngle1);
+      ring1MV = mat4Scale(ring1MV, scaleAnim, scaleAnim, scaleAnim);
+
+      gl.useProgram(ringProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, ring1Buf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uModelView'), false, ring1MV);
+      gl.uniform3f(gl.getUniformLocation(ringProg, 'uColor'), curColor[0] * 1.35, curColor[1] * 1.35, curColor[2] * 1.35);
+      gl.uniform1f(gl.getUniformLocation(ringProg, 'uAlpha'), 0.85);
+      gl.drawArrays(gl.LINES, 0, ring1Verts.length / 3);
+
+      gl.useProgram(nodeProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, nodes1Buf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(nodeProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(nodeProg, 'uModelView'), false, ring1MV);
+      gl.uniform1f(gl.getUniformLocation(nodeProg, 'uPointSize'), 180.0);
+      gl.uniform3f(gl.getUniformLocation(nodeProg, 'uColor'), 1.0, 1.0, 1.0);
+      gl.drawArrays(gl.POINTS, 0, 4);
+
+      // --- Ring 2: Middle Gyro (Tilted 68°) ---
+      let ring2MV = mat4Identity();
+      ring2MV = mat4Translate(ring2MV, 0, 0, -11.5);
+      ring2MV = mat4RotateZ(ring2MV, 1.18);
+      ring2MV = mat4RotateX(ring2MV, rotX + 0.25);
+      ring2MV = mat4RotateY(ring2MV, rotY + ringAngle2);
+      ring2MV = mat4Scale(ring2MV, scaleAnim, scaleAnim, scaleAnim);
+
+      gl.useProgram(ringProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, ring2Buf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uModelView'), false, ring2MV);
+      gl.uniform3f(gl.getUniformLocation(ringProg, 'uColor'), curColor[0] * 1.5, curColor[1] * 1.5, curColor[2] * 1.5);
+      gl.uniform1f(gl.getUniformLocation(ringProg, 'uAlpha'), 0.90);
+      gl.drawArrays(gl.LINES, 0, ring2Verts.length / 3);
+
+      gl.useProgram(nodeProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, nodes2Buf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(nodeProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(nodeProg, 'uModelView'), false, ring2MV);
+      gl.uniform1f(gl.getUniformLocation(nodeProg, 'uPointSize'), 220.0);
+      gl.uniform3f(gl.getUniformLocation(nodeProg, 'uColor'), curColor[0] * 1.8, curColor[1] * 1.8, curColor[2] * 1.8);
+      gl.drawArrays(gl.POINTS, 0, 6);
+
+      // --- Ring 3: Outer Data Horizon (Tilted -35°) ---
+      let ring3MV = mat4Identity();
+      ring3MV = mat4Translate(ring3MV, 0, 0, -11.5);
+      ring3MV = mat4RotateX(ring3MV, rotX - 0.62);
+      ring3MV = mat4RotateY(ring3MV, rotY + ringAngle3);
+      ring3MV = mat4Scale(ring3MV, scaleAnim, scaleAnim, scaleAnim);
+
+      gl.useProgram(ringProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, ring3Buf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uModelView'), false, ring3MV);
+      gl.uniform3f(gl.getUniformLocation(ringProg, 'uColor'), curColor[0] * 1.1, curColor[1] * 1.1, curColor[2] * 1.1);
+      gl.uniform1f(gl.getUniformLocation(ringProg, 'uAlpha'), 0.70);
+      gl.drawArrays(gl.LINES, 0, ring3Verts.length / 3);
+
+      gl.useProgram(nodeProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, nodes3Buf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(nodeProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(nodeProg, 'uModelView'), false, ring3MV);
+      gl.uniform1f(gl.getUniformLocation(nodeProg, 'uPointSize'), 160.0);
+      gl.uniform3f(gl.getUniformLocation(nodeProg, 'uColor'), 1.0, 1.0, 1.0);
+      gl.drawArrays(gl.POINTS, 0, 8);
+
+      // 5. Draw Dynamic Equatorial Audio Waveform Equalizer
+      for (let i = 0; i < waveCount; i++) {
+        const theta = (i / waveCount) * Math.PI * 2;
+        const cosT = Math.cos(theta);
+        const sinT = Math.sin(theta);
+        const freq1 = Math.sin(theta * 6.0 + speechAnimTimer * 7.0);
+        const freq2 = Math.cos(theta * 12.0 - speechAnimTimer * 5.0);
+        const h = (freq1 * 0.6 + freq2 * 0.4) * (0.08 + audioReact * 0.70);
+        const r1 = 5.05;
+        const r2 = 5.05 + Math.abs(h);
+
+        wavePositions[i * 6 + 0] = cosT * r1;
+        wavePositions[i * 6 + 1] = -0.05;
+        wavePositions[i * 6 + 2] = sinT * r1;
+
+        wavePositions[i * 6 + 3] = cosT * r2;
+        wavePositions[i * 6 + 4] = h * 1.5;
+        wavePositions[i * 6 + 5] = sinT * r2;
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, waveBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, wavePositions, gl.DYNAMIC_DRAW);
+
+      gl.useProgram(ringProg);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(ringProg, 'uModelView'), false, baseMV);
+      gl.uniform3f(gl.getUniformLocation(ringProg, 'uColor'), curColor[0] * 1.6, curColor[1] * 1.6, curColor[2] * 1.6);
+      gl.uniform1f(gl.getUniformLocation(ringProg, 'uAlpha'), 0.95);
+      gl.drawArrays(gl.LINES, 0, waveCount * 2);
+
+      // 6. Draw Atmospheric Glow Corona Outer Sphere
+      gl.useProgram(atmosphereProg);
+      gl.enableVertexAttribArray(0);
+      gl.enableVertexAttribArray(1);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, atPosBuf);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, atNormBuf);
+      gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, atIdxBuf);
+
+      gl.uniformMatrix4fv(gl.getUniformLocation(atmosphereProg, 'uProjection'), false, proj);
+      gl.uniformMatrix4fv(gl.getUniformLocation(atmosphereProg, 'uModelView'), false, baseMV);
+      const glowBoost = 1.1 + audioReact * 0.6;
+      gl.uniform3f(gl.getUniformLocation(atmosphereProg, 'uGlowColor'), curColor[0] * glowBoost, curColor[1] * glowBoost, curColor[2] * glowBoost);
+      gl.drawElements(gl.TRIANGLES, atmosphereSphere.triIndices.length, gl.UNSIGNED_SHORT, 0);
+
+      window.__lastGLError = gl.getError();
+      requestAnimationFrame(render);
+    }
+
+    render();
+
+    // ═══════════════════ LIVE PYWEBVIEW API BRIDGE & STATE ═══════════════════
+
+    const hasBridge = () => typeof window.pywebview !== 'undefined' && window.pywebview.api;
+
+    window.setVoiceState = setVoiceState;
+
+    function setVoiceState(state) {
+      currentVoiceState = state;
+      targetColor = stateColors[state] || stateColors.standby;
+      const statusLabel = document.getElementById('statusLabel');
+      const pulseDot = document.getElementById('statusDot');
+
+      // Update button active styles
+      ['standby', 'listening', 'thinking', 'speaking'].forEach(s => {
+        const btn = document.getElementById(`btn-${s}`);
+        if (btn) {
+          if (s === state) {
+            btn.className = 'px-2.5 py-1 rounded-lg text-white bg-blue-600/30 border border-blue-500/40 transition-all font-semibold';
+          } else {
+            btn.className = 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all';
+          }
+        }
+      });
+
+      if (state === 'standby') {
+        statusLabel.innerText = isAlwaysListening ? '🟢 ALWAYS LISTENING ACTIVE' : 'STANDBY: "HEY IGRIS"';
+        pulseDot.className = isAlwaysListening ? 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping' : 'w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse';
+      } else if (state === 'listening') {
+        statusLabel.innerText = '🎤 LISTENING (Recognizing voice)...';
+        pulseDot.className = 'w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping';
+      } else if (state === 'thinking') {
+        statusLabel.innerText = '🧠 REASONING (LLM & Tools)...';
+        pulseDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 animate-spin';
+      } else if (state === 'speaking') {
+        statusLabel.innerText = '🔊 SPEAKING (Neural Voice TTS)...';
+        pulseDot.className = 'w-2.5 h-2.5 rounded-full bg-purple-500 animate-bounce';
+      }
+    }
+
+    // ═══════════════════ ALWAYS LISTENING CONTROLLER ═══════════════════
+
+    async function toggleAlwaysListening() {
+      isAlwaysListening = !isAlwaysListening;
+      updateAlwaysListeningUI();
+
+      if (isAlwaysListening) {
+        runAlwaysListeningLoop();
+      } else {
+        setVoiceState('standby');
+      }
+    }
+
+    function updateAlwaysListeningUI() {
+      const btn = document.getElementById('alwaysListeningBtn');
+      const dot = document.getElementById('alwaysListeningDot');
+      const txt = document.getElementById('alwaysListeningText');
+      const centerBtn = document.getElementById('centerAlwaysListeningBtn');
+      const centerDot = document.getElementById('centerAlwaysDot');
+      const centerTxt = document.getElementById('centerAlwaysText');
+      const inputBtn = document.getElementById('inputAlwaysListeningBtn');
+
+      if (isAlwaysListening) {
+        if (btn) btn.className = 'px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold transition-all border flex items-center gap-2 bg-emerald-950/90 border-emerald-500/60 text-emerald-300 shadow-lg shadow-emerald-500/20';
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+        if (txt) txt.innerText = 'Always Listening: ON';
+
+        if (centerBtn) centerBtn.className = 'hud-interactive px-4 py-2 rounded-full bg-emerald-950/90 border border-emerald-400/80 text-xs font-mono text-emerald-300 backdrop-blur-md transition-all shadow-xl shadow-emerald-500/20 flex items-center gap-2';
+        if (centerDot) centerDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+        if (centerTxt) centerTxt.innerText = '🟢 Hands-Free ACTIVE';
+
+        if (inputBtn) inputBtn.className = 'p-2.5 rounded-xl bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-500/60 text-emerald-400 shadow-lg shadow-emerald-500/20 transition-all';
+      } else {
+        if (btn) btn.className = 'px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold transition-all border flex items-center gap-2 bg-slate-950/90 border-slate-800 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/40';
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-slate-600';
+        if (txt) txt.innerText = 'Always Listening: OFF';
+
+        if (centerBtn) centerBtn.className = 'hud-interactive px-4 py-2 rounded-full bg-slate-950/70 border border-slate-700/60 text-xs font-mono text-slate-300 hover:text-emerald-300 hover:border-emerald-500/50 backdrop-blur-md transition-all shadow-xl hover:scale-105 flex items-center gap-2';
+        if (centerDot) centerDot.className = 'w-2 h-2 rounded-full bg-slate-500';
+        if (centerTxt) centerTxt.innerText = '⚡ Continuous Voice';
+
+        if (inputBtn) inputBtn.className = 'p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-emerald-400 transition-all';
+      }
+    }
+
+    function isStopListeningQuery(text) {
+      const t = (text || '').toLowerCase().trim();
+      return /\b(stop\s+(listen|listening|voice|always\s+listening|mic)|turn\s+off\s+(listening|voice)|disable\s+(listening|voice)|mute\s+mic)\b/.test(t) || t === 'stop listen' || t === 'stop listening' || t === 'stop voice';
+    }
+
+    let bargeInTriggered = false;
+    let manualBargeInTriggered = false;
+
+    window.onBargeInTriggered = function() {
+      console.log("⚡ Voice Barge-In Event received from python backend!");
+      bargeInTriggered = true;
+      setVoiceState('listening');
+    };
+
+    async function loadVoiceSettings() {
+      if (hasBridge()) {
+        try {
+          const s = await window.pywebview.api.get_voice_settings();
+          if (s) {
+            const modeEl = document.getElementById('settingBargeInMode');
+            if (modeEl && s.barge_in_mode) modeEl.value = s.barge_in_mode;
+            const volEl = document.getElementById('settingVolume');
+            if (volEl && s.volume !== undefined) {
+              const v = Math.round(s.volume * 100);
+              volEl.value = v;
+              const lbl = document.getElementById('volumeLabel');
+              if (lbl) lbl.innerText = v + '%';
+            }
+            const engEl = document.getElementById('settingEnglishVoice');
+            if (engEl && s.english_voice) engEl.value = s.english_voice;
+            const taEl = document.getElementById('settingTamilVoice');
+            if (taEl && s.tamil_voice) taEl.value = s.tamil_voice;
+          }
+        } catch (e) {
+          console.error("Error loading voice settings:", e);
+        }
+      }
+    }
+
+    async function updateVoiceSetting(key, val) {
+      if (hasBridge()) {
+        try {
+          const payload = {};
+          payload[key] = val;
+          await window.pywebview.api.update_voice_settings(payload);
+          console.log(`Updated voice setting: ${key} = ${val}`);
+        } catch (e) {
+          console.error("Error updating voice setting:", e);
+        }
+      }
+    }
+
+    async function runAlwaysListeningLoop() {
+      while (isAlwaysListening) {
+        try {
+          setVoiceState('listening');
+          if (hasBridge()) {
+            bargeInTriggered = false;
+            const result = await window.pywebview.api.trigger_voice();
+            if (!isAlwaysListening) break;
+
+            if (result && result.status === 'success' && result.user_input) {
+              appendUserBubble(result.user_input, result.user_name || 'Joshua');
+              if (result.tool_logs && result.tool_logs.length > 0) {
+                result.tool_logs.forEach(tl => appendToolBadge(tl));
+              }
+              appendAiBubble(result.response);
+
+              // Immediately halt listening loop if user requested to stop listening
+              if (result.stop_listening || isStopListeningQuery(result.user_input)) {
+                isAlwaysListening = false;
+                updateAlwaysListeningUI();
+                setVoiceState('standby');
+                break;
+              }
+
+              // Maintain animated speaking state while TTS plays cleanly
+              bargeInTriggered = false;
+              await new Promise(r => setTimeout(r, 220));
+              while (isAlwaysListening && await window.pywebview.api.is_speaking()) {
+                await new Promise(r => setTimeout(r, 50));
+              }
+
+              // If interrupted by voice barge-in, skip echo recovery and listen immediately!
+              if (bargeInTriggered) {
+                bargeInTriggered = false;
+              } else {
+                // Echo recovery delay: prevents speaker reverberation from re-triggering mic
+                await new Promise(r => setTimeout(r, 350));
+              }
+            } else {
+              // Silence or timeout: brief wait and continue listening
+              await new Promise(r => setTimeout(r, 120));
+            }
+          } else {
+            // Standalone browser preview
+            await new Promise(r => setTimeout(r, 2500));
+            if (!isAlwaysListening) break;
+            setVoiceState('speaking');
+            await new Promise(r => setTimeout(r, 2500));
+            setVoiceState('standby');
+            await new Promise(r => setTimeout(r, 800));
+          }
+        } catch (err) {
+          console.error('Always listening loop error:', err);
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+      setVoiceState('standby');
+    }
+
+    // ═══════════════════ SINGLE TURN VOICE CYCLE ═══════════════════
+
+    async function triggerVoiceCycle() {
+      setVoiceState('listening');
+      if (hasBridge()) {
+        try {
+          bargeInTriggered = false;
+          const result = await window.pywebview.api.trigger_voice();
+          if (result && result.status === 'success' && result.user_input) {
+            appendUserBubble(result.user_input, result.user_name || 'Joshua');
+            if (result.tool_logs && result.tool_logs.length > 0) {
+              result.tool_logs.forEach(tl => appendToolBadge(tl));
+            }
+            appendAiBubble(result.response);
+
+            // Turn off always listening if active and requested to stop
+            if (result.stop_listening || isStopListeningQuery(result.user_input)) {
+              isAlwaysListening = false;
+              updateAlwaysListeningUI();
+            }
+
+            // Keep animated speaking state while voice audio is playing cleanly
+            bargeInTriggered = false;
+            await new Promise(r => setTimeout(r, 220));
+            while (await window.pywebview.api.is_speaking()) {
+              await new Promise(r => setTimeout(r, 50));
+            }
+
+            // If user barged in during speech, immediately listen to their follow-up!
+            if (bargeInTriggered) {
+              bargeInTriggered = false;
+              console.log("Barge-in interrupted single turn - transitioning immediately to listening!");
+              setTimeout(() => triggerVoiceCycle(), 80);
+              return;
+            }
+
+            setVoiceState('standby');
+          } else {
+            setVoiceState('standby');
+          }
+        } catch (e) {
+          console.error(e);
+          setVoiceState('standby');
+        }
+      } else {
+        // Fallback simulation for browser test
+        setTimeout(() => {
+          setVoiceState('thinking');
+          setTimeout(() => {
+            setVoiceState('speaking');
+            setTimeout(() => setVoiceState('standby'), 3000);
+          }, 1500);
+        }, 1500);
+      }
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active'));
+      document.querySelectorAll('.tab-view').forEach(view => view.classList.add('hidden'));
+
+      const activeBtn = document.getElementById(`tabBtn-${tabId}`);
+      const activeView = document.getElementById(`tabContent-${tabId}`);
+      if (activeBtn) activeBtn.classList.add('tab-active');
+      if (activeView) activeView.classList.remove('hidden');
+
+      if (tabId === 'comm') loadCommPanel();
+      if (tabId === 'docs') loadIndexedDocuments();
+      if (tabId === 'diagnostics') refreshTelemetry();
+      if (tabId === 'memory') loadFacts();
+      if (tabId === 'settings') loadVoiceSettings();
+    }
+
+    async function triggerMediaControl(action) {
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.control_media(action);
+          const badge = document.getElementById('mediaStatusBadge');
+          if (badge && res) {
+            badge.innerText = res.action ? res.action.replace('_', ' ').toUpperCase() : 'OK';
+            setTimeout(() => { badge.innerText = 'Ready'; }, 2500);
+          }
+        } catch (e) { console.error('Media control error:', e); }
+      }
+    }
+
+    async function triggerSpotifyPlay() {
+      const input = document.getElementById('spotifyQueryInput');
+      const q = input ? input.value.trim() : '';
+      if (!q) return;
+      if (hasBridge()) {
+        await window.pywebview.api.play_spotify(q);
+      } else {
+        window.open(`https://open.spotify.com/search/${encodeURIComponent(q)}`, '_blank');
+      }
+      if (input) input.value = '';
+    }
+
+    async function triggerYouTubePlay() {
+      const input = document.getElementById('youtubeQueryInput');
+      const q = input ? input.value.trim() : '';
+      if (!q) return;
+      if (hasBridge()) {
+        await window.pywebview.api.play_youtube(q, true);
+      } else {
+        window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`, '_blank');
+      }
+      if (input) input.value = '';
+    }
+
+    async function triggerSpotifyQuick() {
+      if (hasBridge()) {
+        await window.pywebview.api.play_spotify('');
+      } else {
+        window.open('https://open.spotify.com', '_blank');
+      }
+    }
+
+    async function triggerYouTubeQuick() {
+      if (hasBridge()) {
+        await window.pywebview.api.play_youtube('', false);
+      } else {
+        window.open('https://www.youtube.com', '_blank');
+      }
+    }
+
+    async function sendStreamMessage() {
+      const input = document.getElementById('streamInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      appendUserBubble(text, 'Joshua');
+      setVoiceState('thinking');
+      bargeInTriggered = false;
+      manualBargeInTriggered = false;
+
+      if (hasBridge()) {
+        try {
+          const result = await window.pywebview.api.send_message(text);
+          if (result && result.status === 'success') {
+            if (result.tool_logs && result.tool_logs.length > 0) {
+              result.tool_logs.forEach(tl => appendToolBadge(tl));
+            }
+            appendAiBubble(result.response);
+
+            // Turn off always listening if active and requested to stop
+            if (result.stop_listening || isStopListeningQuery(text)) {
+              isAlwaysListening = false;
+              updateAlwaysListeningUI();
+            }
+
+            // Keep animated speaking state while voice audio is playing cleanly
+            bargeInTriggered = false;
+            await new Promise(r => setTimeout(r, 220));
+            while (await window.pywebview.api.is_speaking()) {
+              await new Promise(r => setTimeout(r, 50));
+            }
+
+            // If user explicitly hit Spacebar/Escape or clicked Orb to barge-in
+            if (manualBargeInTriggered) {
+              manualBargeInTriggered = false;
+              bargeInTriggered = false;
+              console.log("Manual barge-in during text response - transitioning to listening!");
+              setTimeout(() => triggerVoiceCycle(), 80);
+              return;
+            }
+
+            bargeInTriggered = false;
+            setVoiceState('standby');
+          } else {
+            appendAiBubble("No response generated.");
+            setVoiceState('standby');
+          }
+        } catch (e) {
+          appendAiBubble("Error connecting to IGIRS AI backend: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        // Standalone preview fallback
+        setTimeout(() => {
+          setVoiceState('speaking');
+          appendAiBubble(`I have received your command: "${text}". WebGL & NVIDIA NIM ready.`);
+          setTimeout(() => setVoiceState('standby'), 3000);
+        }, 1200);
+      }
+    }
+
+    // ═══════════════════ MULTIMODAL SCREEN VISION ENGINE ═══════════════════
+
+    async function triggerScreenVision(question = "Describe what is currently on the screen", focusWindow = false) {
+      appendUserBubble(question, 'Joshua');
+      setVoiceState('thinking');
+
+      const stream = document.getElementById('chatStream');
+      const scanBadge = document.createElement('div');
+      scanBadge.className = 'max-w-[90%] bg-indigo-950/80 border border-indigo-500/40 rounded-xl p-3 flex items-center gap-2.5 text-xs text-indigo-300 shadow-lg';
+      scanBadge.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping"></span>
+        <span class="font-mono">🔍 Capturing ${focusWindow ? 'active window' : 'live screen'} & analyzing with NVIDIA Multimodal Vision...</span>
+      `;
+      stream.appendChild(scanBadge);
+      stream.scrollTop = stream.scrollHeight;
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.analyze_screen(question, focusWindow);
+          scanBadge.remove();
+
+          if (res && res.status === 'success') {
+            appendVisionBubble(res);
+
+            // Wait for spoken response if TTS is speaking
+            await new Promise(r => setTimeout(r, 220));
+            while (await window.pywebview.api.is_speaking()) {
+              await new Promise(r => setTimeout(r, 50));
+            }
+            setVoiceState('standby');
+          } else {
+            appendAiBubble("Vision analysis could not be completed: " + (res.message || "Unknown error"));
+            setVoiceState('standby');
+          }
+        } catch (e) {
+          scanBadge.remove();
+          appendAiBubble("Screen vision error: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        setTimeout(() => {
+          scanBadge.remove();
+          appendAiBubble("Browser Simulation: Screen captured and analyzed. Terminal and browser windows detected.");
+          setVoiceState('standby');
+        }, 1500);
+      }
+    }
+
+    function openVisionModal(src) {
+      if (!src) return;
+      const modal = document.getElementById('visionModal');
+      const img = document.getElementById('visionModalImg');
+      if (modal && img) {
+        img.src = src;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeVisionModal() {
+      const modal = document.getElementById('visionModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    function downloadModalImage() {
+      const img = document.getElementById('visionModalImg');
+      if (img && img.src) {
+        const a = document.createElement('a');
+        a.href = img.src;
+        a.download = 'igirs_vision_capture_' + Date.now() + '.jpg';
+        a.click();
+      }
+    }
+
+    function copyVisionAnalysis(btn) {
+      const card = btn.closest('.flex-col');
+      const textEl = card.querySelector('.leading-relaxed');
+      if (textEl) {
+        navigator.clipboard.writeText(textEl.innerText || textEl.textContent).then(() => {
+          const orig = btn.innerHTML;
+          btn.innerHTML = '<span>✔</span> Copied!';
+          btn.classList.add('text-emerald-400');
+          setTimeout(() => {
+            btn.innerHTML = orig;
+            btn.classList.remove('text-emerald-400');
+          }, 2000);
+        });
+      }
+    }
+
+    async function handleVisionFileUpload(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target.result;
+        appendUserBubble("Analyze this image: " + file.name, 'Joshua');
+        setVoiceState('thinking');
+
+        const stream = document.getElementById('chatStream');
+        const scanBadge = document.createElement('div');
+        scanBadge.className = 'max-w-[90%] bg-indigo-950/80 border border-indigo-500/40 rounded-xl p-3 flex items-center gap-2.5 text-xs text-indigo-300 shadow-lg';
+        scanBadge.innerHTML = `
+          <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping"></span>
+          <span class="font-mono">🔍 Uploading & analyzing image with NVIDIA Multimodal Vision...</span>
+        `;
+        stream.appendChild(scanBadge);
+        stream.scrollTop = stream.scrollHeight;
+
+        if (hasBridge() && window.pywebview.api.analyze_uploaded_image) {
+          try {
+            const res = await window.pywebview.api.analyze_uploaded_image(base64Data, "Carefully analyze this uploaded image and describe all text, diagrams, code, UI, or errors present.");
+            scanBadge.remove();
+            if (res && res.status === 'success') {
+              appendVisionBubble(res);
+              await new Promise(r => setTimeout(r, 220));
+              while (await window.pywebview.api.is_speaking()) {
+                await new Promise(r => setTimeout(r, 50));
+              }
+              setVoiceState('standby');
+            } else {
+              appendAiBubble("Image analysis error: " + (res.message || "Unknown error"));
+              setVoiceState('standby');
+            }
+          } catch (err) {
+            scanBadge.remove();
+            appendAiBubble("Upload analysis error: " + err);
+            setVoiceState('standby');
+          }
+        } else {
+          setTimeout(() => {
+            scanBadge.remove();
+            appendVisionBubble({
+              status: 'success',
+              question: 'Uploaded image analysis',
+              analysis: 'Simulated analysis of uploaded file: ' + file.name + ' - Features extracted successfully.',
+              preview_base64: base64Data,
+              is_upload: true
+            });
+            setVoiceState('standby');
+          }, 1200);
+        }
+      };
+      reader.readAsDataURL(file);
+      event.target.value = '';
+    }
+
+    function appendVisionBubble(data) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const bubble = document.createElement('div');
+      bubble.className = 'flex flex-col items-start gap-1 max-w-[95%]';
+
+      const scopeTag = data.is_upload ? "Uploaded Image / Snapshot" : (data.focus_window ? "Active Window Focus" : "Full Desktop Display");
+      const imgHtml = data.preview_base64 ? `
+        <div class="relative group rounded-xl overflow-hidden border border-indigo-500/30 shadow-md bg-black/40 mt-1 cursor-pointer" onclick="openVisionModal('${data.preview_base64}')">
+          <img src="${data.preview_base64}" alt="Captured Screen" class="w-full max-h-48 object-cover rounded-lg group-hover:scale-[1.02] transition-transform duration-300">
+          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-2 opacity-90 group-hover:opacity-100 transition-opacity">
+            <span class="text-[10px] font-mono text-cyan-300 flex items-center gap-1">
+              <span>🔍</span> Click to expand in Cyber Inspector
+            </span>
+          </div>
+        </div>
+      ` : '';
+
+      bubble.innerHTML = `
+        <span class="text-[10px] font-mono text-indigo-400 pl-1">IGIRS AI Vision Engine • ${time} • <span class="text-cyan-400">${scopeTag}</span></span>
+        <div class="w-full bg-slate-900/95 border border-indigo-500/40 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-2xl flex flex-col gap-2.5">
+          ${imgHtml}
+          <div class="leading-relaxed whitespace-pre-wrap text-slate-200 mt-1">${escapeHtml(data.analysis)}</div>
+          <div class="flex items-center flex-wrap gap-2 pt-2 border-t border-slate-800 text-[10px] text-slate-400">
+            <button onclick="respeakMessage(this)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
+              <span>🔊</span> Re-speak
+            </button>
+            <button onclick="copyVisionAnalysis(this)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
+              <span>📋</span> Copy
+            </button>
+            <button onclick="triggerScreenVision('${escapeHtml(data.question)}', false)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
+              <span>🔁</span> Re-scan
+            </button>
+            <button onclick="triggerScreenVision('Explain errors or code in active window', true)" class="px-2.5 py-1 rounded bg-rose-950/80 hover:bg-rose-900 border border-rose-700/50 text-rose-300 transition-colors flex items-center gap-1">
+              <span>🐛</span> Debug Window
+            </button>
+            <button onclick="insertPrompt('Regarding this screen: ')" class="px-2.5 py-1 rounded bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-300 transition-colors flex items-center gap-1">
+              <span>💬</span> Follow-up
+            </button>
+            <span class="ml-auto font-mono text-indigo-400">Llama-3.2-11B-Vision</span>
+          </div>
+        </div>
+      `;
+      stream.appendChild(bubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    // ═══════════════════ PHASE 6: HANDS-FREE WHATSAPP & EMAIL COMMUNICATIONS ═══════════════════
+
+    let activeCommMode = 'wa';
+    let cachedContacts = [];
+
+    function switchCommMode(mode) {
+      activeCommMode = mode;
+      ['wa', 'mail', 'contacts', 'config'].forEach(m => {
+        const btn = document.getElementById(`commModeBtn-${m}`);
+        const sub = document.getElementById(`commSub-${m}`);
+        if (btn) {
+          if (m === mode) {
+            btn.className = m === 'wa' ? 'px-2 py-0.5 rounded bg-emerald-600 text-white font-medium transition-all' :
+                            (m === 'mail' ? 'px-2 py-0.5 rounded bg-indigo-600 text-white font-medium transition-all' :
+                            'px-2 py-0.5 rounded bg-blue-600 text-white font-medium transition-all');
+          } else {
+            btn.className = 'px-2 py-0.5 rounded text-slate-400 hover:text-white font-medium transition-all';
+          }
+        }
+        if (sub) {
+          if (m === mode) sub.classList.remove('hidden');
+          else sub.classList.add('hidden');
+        }
+      });
+
+      if (mode === 'contacts') loadContactsList();
+      if (mode === 'config') loadEmailConfigGui();
+    }
+
+    async function loadCommPanel() {
+      await loadContactsList();
+      loadEmailConfigGui();
+    }
+
+    async function loadContactsList() {
+      if (!hasBridge()) {
+        renderContactsList([
+          { id: 'c_self', name: 'Joshua', nickname: 'Me', phone: '+919876543210', email: 'joshua@example.com' },
+          { id: 'c_1', name: 'Alex Miller', nickname: 'Alex', phone: '+1234567890', email: 'alex@example.com' }
+        ]);
+        return;
+      }
+      try {
+        const contacts = await window.pywebview.api.get_contacts();
+        cachedContacts = contacts || [];
+        renderContactsList(cachedContacts);
+        updateContactsDatalist(cachedContacts);
+      } catch (err) {
+        console.error("Error loading contacts:", err);
+      }
+    }
+
+    function updateContactsDatalist(contacts) {
+      const dl = document.getElementById('contactsDataList');
+      if (!dl) return;
+      dl.innerHTML = '';
+      contacts.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.nickname || c.name;
+        opt.label = `${c.name} (${c.phone || c.email || ''})`;
+        dl.appendChild(opt);
+      });
+    }
+
+    function renderContactsList(contacts) {
+      const container = document.getElementById('contactsCardContainer');
+      if (!container) return;
+      if (!contacts || contacts.length === 0) {
+        container.innerHTML = '<div class="text-xs text-slate-500 text-center py-4">No contacts saved yet. Click "+ Add" above!</div>';
+        return;
+      }
+
+      container.innerHTML = '';
+      contacts.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'p-2.5 rounded-xl border border-slate-800/90 bg-slate-950/40 flex items-center justify-between text-xs hover:border-slate-700 transition-all';
+        const nickBadge = c.nickname ? `<span class="px-1.5 py-0.5 rounded bg-blue-950/80 border border-blue-800/40 text-[9px] text-blue-300 font-mono">${escapeHtml(c.nickname)}</span>` : '';
+        card.innerHTML = `
+          <div class="flex flex-col gap-0.5 min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="font-semibold text-slate-200 truncate">${escapeHtml(c.name)}</span>
+              ${nickBadge}
+            </div>
+            <div class="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
+              ${c.phone ? `<span>📱 ${escapeHtml(c.phone)}</span>` : ''}
+              ${c.email ? `<span class="truncate">✉️ ${escapeHtml(c.email)}</span>` : ''}
+            </div>
+          </div>
+          <div class="flex items-center gap-1 shrink-0 ml-2">
+            ${c.phone ? `<button onclick="quickWaContact('${escapeHtml(c.phone)}', '${escapeHtml(c.name)}')" title="Quick WhatsApp" class="p-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-800 text-emerald-300 transition-colors">💬</button>` : ''}
+            ${c.email ? `<button onclick="quickMailContact('${escapeHtml(c.email)}', '${escapeHtml(c.name)}')" title="Quick Email" class="p-1.5 rounded-lg bg-indigo-950/80 hover:bg-indigo-800 text-indigo-300 transition-colors">✉️</button>` : ''}
+            <button onclick="deleteContactGui('${escapeHtml(c.id)}')" title="Delete Contact" class="p-1.5 rounded-lg hover:bg-rose-950/80 text-slate-500 hover:text-rose-400 transition-colors">🗑️</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function filterContactsGui(query) {
+      if (!query || !query.trim()) {
+        renderContactsList(cachedContacts);
+        return;
+      }
+      const q = query.toLowerCase();
+      const filtered = cachedContacts.filter(c => 
+        (c.name && c.name.toLowerCase().includes(q)) ||
+        (c.nickname && c.nickname.toLowerCase().includes(q)) ||
+        (c.phone && c.phone.toLowerCase().includes(q)) ||
+        (c.email && c.email.toLowerCase().includes(q))
+      );
+      renderContactsList(filtered);
+    }
+
+    function toggleAddContactForm() {
+      const f = document.getElementById('addContactForm');
+      if (f) f.classList.toggle('hidden');
+    }
+
+    async function executeSaveContact() {
+      const name = document.getElementById('newContactName')?.value?.trim();
+      const nick = document.getElementById('newContactNick')?.value?.trim() || '';
+      const phone = document.getElementById('newContactPhone')?.value?.trim() || '';
+      const email = document.getElementById('newContactEmail')?.value?.trim() || '';
+
+      if (!name) {
+        alert("Please provide a contact name.");
+        return;
+      }
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.save_contact(name, phone, email, nick);
+          if (res && res.status === 'success') {
+            toggleAddContactForm();
+            document.getElementById('newContactName').value = '';
+            document.getElementById('newContactNick').value = '';
+            document.getElementById('newContactPhone').value = '';
+            document.getElementById('newContactEmail').value = '';
+            loadContactsList();
+          } else {
+            alert(res.message || "Failed to save contact.");
+          }
+        } catch (e) {
+          console.error("Save contact error:", e);
+        }
+      }
+    }
+
+    async function deleteContactGui(contactId) {
+      if (!confirm("Are you sure you want to delete this contact?")) return;
+      if (hasBridge()) {
+        try {
+          await window.pywebview.api.delete_contact(contactId);
+          loadContactsList();
+        } catch (e) {
+          console.error("Delete contact error:", e);
+        }
+      }
+    }
+
+    function quickWaContact(phone, name) {
+      switchCommMode('wa');
+      const input = document.getElementById('waRecipientInput');
+      if (input) {
+        input.value = name || phone;
+        document.getElementById('waMessageInput')?.focus();
+      }
+    }
+
+    function quickMailContact(email, name) {
+      switchCommMode('mail');
+      const input = document.getElementById('mailToInput');
+      if (input) {
+        input.value = email;
+        document.getElementById('mailSubjectInput')?.focus();
+      }
+    }
+
+    async function executeSendWhatsApp() {
+      const rec = document.getElementById('waRecipientInput')?.value?.trim();
+      const msg = document.getElementById('waMessageInput')?.value?.trim();
+      const autoSend = document.getElementById('waAutoSendCheck')?.checked ?? true;
+
+      if (!rec) {
+        alert("Please enter a recipient name, nickname, or phone number.");
+        return;
+      }
+      if (!msg) {
+        alert("Please enter a message to send.");
+        return;
+      }
+
+      appendUserBubble(`WhatsApp to ${rec}: "${msg}"`);
+      setVoiceState('thinking');
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.send_whatsapp(rec, msg, autoSend);
+          if (res && res.status === 'success') {
+            appendCommDispatchBubble({
+              platform: 'WhatsApp',
+              recipient: res.recipient_name,
+              phone: res.recipient_phone,
+              message: res.message,
+              mode: res.mode,
+              auto_send: res.auto_send
+            });
+            document.getElementById('waMessageInput').value = '';
+          } else {
+            appendAiBubble("Could not dispatch WhatsApp: " + (res.message || "Unknown error"));
+          }
+          setVoiceState('standby');
+        } catch (e) {
+          appendAiBubble("WhatsApp error: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        setTimeout(() => {
+          appendCommDispatchBubble({
+            platform: 'WhatsApp',
+            recipient: rec,
+            phone: '+919876543210',
+            message: msg,
+            mode: 'demo',
+            auto_send: autoSend
+          });
+          setVoiceState('standby');
+        }, 1000);
+      }
+    }
+
+    async function executeSendEmail() {
+      const to = document.getElementById('mailToInput')?.value?.trim();
+      const subj = document.getElementById('mailSubjectInput')?.value?.trim();
+      const body = document.getElementById('mailBodyInput')?.value?.trim();
+      const autoSend = document.getElementById('mailAutoSendCheck')?.checked ?? true;
+
+      if (!to) {
+        alert("Please enter a recipient email or contact name.");
+        return;
+      }
+      if (!subj || !body) {
+        alert("Please enter both subject and body for the email.");
+        return;
+      }
+
+      appendUserBubble(`Send email to ${to} regarding "${subj}"`);
+      setVoiceState('thinking');
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.send_email(to, subj, body, null, autoSend);
+          if (res && res.status === 'success') {
+            appendCommDispatchBubble({
+              platform: 'Email',
+              recipient: res.recipient_name || to,
+              email: res.to,
+              subject: res.subject,
+              body: body,
+              mode: res.mode,
+              auto_send: autoSend
+            });
+            document.getElementById('mailBodyInput').value = '';
+          } else {
+            appendAiBubble("Could not send email: " + (res.message || "Unknown error"));
+          }
+          setVoiceState('standby');
+        } catch (e) {
+          appendAiBubble("Email error: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        setTimeout(() => {
+          appendCommDispatchBubble({
+            platform: 'Email',
+            recipient: to,
+            email: to,
+            subject: subj,
+            body: body,
+            mode: 'demo',
+            auto_send: autoSend
+          });
+          setVoiceState('standby');
+        }, 1000);
+      }
+    }
+
+    async function executeDraftEmail() {
+      const to = document.getElementById('mailToInput')?.value?.trim();
+      const bodyInput = document.getElementById('mailBodyInput');
+      const subjInput = document.getElementById('mailSubjectInput');
+      const rawText = bodyInput?.value?.trim() || subjInput?.value?.trim();
+
+      if (!rawText) {
+        alert("Please type a brief instruction or bullet points into the email body or subject first!");
+        return;
+      }
+
+      setVoiceState('thinking');
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.draft_email(rawText, to || null, "professional");
+          if (res && res.status === 'success') {
+            if (subjInput) subjInput.value = res.subject;
+            if (bodyInput) bodyInput.value = res.body;
+            appendAiBubble(`✍️ Drafted email for **${res.recipient_name || 'Recipient'}**!\n\n**Subject:** ${res.subject}\n\nYou can review it in the Comm tab before sending.`);
+          } else {
+            alert("Could not draft email: " + res.message);
+          }
+          setVoiceState('standby');
+        } catch (e) {
+          setVoiceState('standby');
+          console.error("Draft email error:", e);
+        }
+      }
+    }
+
+    async function executeCheckUnread() {
+      setVoiceState('thinking');
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.check_unread_emails(5, true);
+          if (res && res.status === 'success') {
+            if (res.unread_count === 0) {
+              appendAiBubble("📥 You have **0 unread emails** in your inbox.");
+            } else {
+              const listText = res.emails.map(e => `• **${escapeHtml(e.sender)}**: ${escapeHtml(e.subject)}`).join('\n');
+              appendAiBubble(`📥 Found **${res.unread_count} unread emails**:\n\n${listText}`);
+            }
+          } else {
+            appendAiBubble("Inbox status: " + (res.message || res.summary || "Not configured."));
+          }
+          setVoiceState('standby');
+        } catch (e) {
+          setVoiceState('standby');
+          appendAiBubble("Inbox check error: " + e);
+        }
+      }
+    }
+
+    async function loadEmailConfigGui() {
+      if (!hasBridge()) return;
+      try {
+        const cfg = await window.pywebview.api.get_email_config();
+        if (cfg) {
+          if (document.getElementById('cfgEmailAddr')) document.getElementById('cfgEmailAddr').value = cfg.email_address || '';
+          if (document.getElementById('cfgEmailPass')) document.getElementById('cfgEmailPass').value = cfg.email_password || '';
+          if (document.getElementById('cfgSmtpHost')) document.getElementById('cfgSmtpHost').value = cfg.smtp_server || 'smtp.gmail.com';
+          if (document.getElementById('cfgSmtpPort')) document.getElementById('cfgSmtpPort').value = cfg.smtp_port || 587;
+          if (document.getElementById('cfgImapHost')) document.getElementById('cfgImapHost').value = cfg.imap_server || 'imap.gmail.com';
+          if (document.getElementById('cfgImapPort')) document.getElementById('cfgImapPort').value = cfg.imap_port || 993;
+        }
+      } catch (e) {
+        console.error("Error loading email config:", e);
+      }
+    }
+
+    async function executeSaveEmailConfig() {
+      const email = document.getElementById('cfgEmailAddr')?.value?.trim();
+      const pass = document.getElementById('cfgEmailPass')?.value?.trim();
+      const smtpHost = document.getElementById('cfgSmtpHost')?.value?.trim() || 'smtp.gmail.com';
+      const smtpPort = parseInt(document.getElementById('cfgSmtpPort')?.value || '587');
+      const imapHost = document.getElementById('cfgImapHost')?.value?.trim() || 'imap.gmail.com';
+      const imapPort = parseInt(document.getElementById('cfgImapPort')?.value || '993');
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.save_email_config(email, pass, smtpHost, smtpPort, imapHost, imapPort);
+          alert(res.message || "Email settings saved!");
+        } catch (e) {
+          alert("Error saving email config: " + e);
+        }
+      }
+    }
+
+    function appendCommDispatchBubble(data) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const bubble = document.createElement('div');
+      bubble.className = 'flex flex-col items-start gap-1 max-w-[95%]';
+
+      const isWa = data.platform === 'WhatsApp';
+      const colorCls = isWa ? 'border-emerald-500/50 bg-emerald-950/20' : 'border-indigo-500/50 bg-indigo-950/20';
+      const badgeCls = isWa ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white';
+
+      bubble.innerHTML = `
+        <span class="text-[10px] font-mono ${isWa ? 'text-emerald-400' : 'text-indigo-400'} pl-1">IGIRS AI Dispatch • ${time}</span>
+        <div class="w-full bg-slate-900/95 border ${colorCls} rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-2xl flex flex-col gap-2">
+          <div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${badgeCls} flex items-center gap-1">
+              <span>${isWa ? '📱' : '✉️'}</span> ${data.platform} Dispatched
+            </span>
+            <span class="text-[10px] font-mono text-slate-400">${escapeHtml(data.recipient)}</span>
+          </div>
+          ${data.subject ? `<div class="font-semibold text-slate-100">Subject: ${escapeHtml(data.subject)}</div>` : ''}
+          <div class="leading-relaxed whitespace-pre-wrap text-slate-300 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/80">${escapeHtml(data.message || data.body || '')}</div>
+          <div class="flex items-center justify-between pt-1 text-[10px] text-slate-400">
+            <button onclick="respeakMessage(this)" class="hover:text-blue-300 flex items-center gap-1 transition-colors">
+              <span>🔊</span> Re-speak
+            </button>
+            <span class="font-mono text-slate-500">${data.mode === 'native_desktop' ? (data.auto_send ? '⚡ WhatsApp Desktop (Sent)' : 'WhatsApp Desktop (Draft)') : (data.mode === 'smtp_direct' ? '⚡ Direct SMTP (Sent)' : (data.mode === 'mailto_client' ? (data.auto_send ? '⚡ Outlook Hands-Free (Sent)' : 'Mail Client (Draft)') : 'Dispatched'))}</span>
+          </div>
+        </div>
+      `;
+      stream.appendChild(bubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    // ═══════════════════ PHASE 5: LOCAL DOCUMENT INTELLIGENCE & RAG ═══════════════════
+
+    let activeSelectedDocId = null;
+
+    async function loadIndexedDocuments() {
+      const listEl = document.getElementById('indexedDocsList');
+      if (!listEl) return;
+
+      if (!hasBridge()) {
+        listEl.innerHTML = `
+          <div class="p-3 rounded-xl border border-slate-800 bg-slate-950/40 text-xs text-slate-300 flex flex-col gap-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-semibold text-blue-400 flex items-center gap-1"><span>💼</span> sample_resume.pdf</span>
+              <span class="text-[10px] font-mono text-slate-500">2 Pages</span>
+            </div>
+            <div class="text-[10px] text-slate-400">Category: Resume • 850 words</div>
+          </div>
+        `;
+        return;
+      }
+
+      try {
+        const docs = await window.pywebview.api.get_documents();
+        if (!docs || docs.length === 0) {
+          listEl.innerHTML = `
+            <div class="p-4 rounded-xl border border-slate-800/80 bg-slate-950/30 text-center text-xs text-slate-500">
+              No documents loaded yet. Drop a PDF, resume, or code file above!
+            </div>
+          `;
+          return;
+        }
+
+        listEl.innerHTML = '';
+        docs.forEach(doc => {
+          let icon = '📄';
+          let badgeColor = 'bg-blue-950 text-blue-300 border-blue-800';
+          if (doc.category === 'resume') { icon = '💼'; badgeColor = 'bg-purple-950 text-purple-300 border-purple-800'; }
+          else if (doc.category === 'code') { icon = '💻'; badgeColor = 'bg-emerald-950 text-emerald-300 border-emerald-800'; }
+          else if (doc.category === 'lecture_notes') { icon = '📝'; badgeColor = 'bg-amber-950 text-amber-300 border-amber-800'; }
+
+          const card = document.createElement('div');
+          card.className = 'p-3 rounded-xl border border-slate-800/90 bg-slate-950/50 hover:bg-slate-900/60 transition-all flex flex-col gap-2 group';
+          card.innerHTML = `
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-1.5 overflow-hidden">
+                <span class="text-base">${icon}</span>
+                <span class="text-xs font-semibold text-slate-200 truncate" title="${escapeHtml(doc.filename)}">${escapeHtml(doc.filename)}</span>
+              </div>
+              <span class="text-[9px] font-mono px-2 py-0.5 rounded-full border ${badgeColor} uppercase tracking-wider">${doc.category.replace('_', ' ')}</span>
+            </div>
+            <div class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+              <span>${doc.total_pages} pages • ${doc.total_chunks} chunks • ${doc.total_words} words</span>
+              <span class="text-slate-500">${doc.created_at || ''}</span>
+            </div>
+            <div class="flex items-center gap-1.5 pt-1.5 border-t border-slate-900">
+              <button onclick="summarizeDoc('${doc.id}')" class="px-2 py-1 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/50 text-[10px] text-indigo-300 font-medium transition-colors flex items-center gap-1">
+                <span>📑</span> Summarize
+              </button>
+              <button onclick="focusDocQuery('${doc.id}', '${escapeHtml(doc.filename)}')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 font-medium transition-colors flex items-center gap-1">
+                <span>❓</span> Ask
+              </button>
+              <button onclick="deleteDoc('${doc.id}')" class="ml-auto p-1 text-slate-500 hover:text-rose-400 transition-colors" title="Delete document">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+              </button>
+            </div>
+          `;
+          listEl.appendChild(card);
+        });
+      } catch (e) {
+        console.error('Failed to load indexed documents:', e);
+      }
+    }
+
+    async function handleDocFileUpload(event) {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+
+      for (let i = 0; i < files.length; i++) {
+        await processSingleDocFile(files[i]);
+      }
+      event.target.value = '';
+    }
+
+    function handleDocDrop(event) {
+      event.preventDefault();
+      const dropZone = document.getElementById('docDropZone');
+      if (dropZone) dropZone.classList.remove('border-blue-500', 'bg-blue-950/20');
+
+      const files = event.dataTransfer ? event.dataTransfer.files : null;
+      if (files && files.length > 0) {
+        for (let i = 0; i < files.length; i++) {
+          processSingleDocFile(files[i]);
+        }
+      }
+    }
+
+    async function processSingleDocFile(file) {
+      appendUserBubble("Indexing document into Knowledge Vault: " + file.name, 'Joshua');
+      setVoiceState('thinking');
+
+      const stream = document.getElementById('chatStream');
+      const badge = document.createElement('div');
+      badge.className = 'max-w-[90%] bg-blue-950/80 border border-blue-500/40 rounded-xl p-3 flex items-center gap-2.5 text-xs text-blue-300 shadow-lg';
+      badge.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full bg-blue-400 animate-ping"></span>
+        <span class="font-mono">📄 Parsing, chunking & indexing "${escapeHtml(file.name)}"...</span>
+      `;
+      stream.appendChild(badge);
+      stream.scrollTop = stream.scrollHeight;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target.result;
+        if (hasBridge()) {
+          try {
+            const res = await window.pywebview.api.ingest_document(base64Data, file.name);
+            badge.remove();
+            if (res && res.status === 'success') {
+              appendAiBubble(`✔ Successfully indexed **${escapeHtml(res.filename)}** into Knowledge Vault!\n- **Category:** ${res.category.replace('_', ' ').toUpperCase()}\n- **Pages/Sections:** ${res.total_pages} (${res.total_words} words)\n- **Search Chunks:** ${res.total_chunks}\n\nYou can now ask me any questions about this file!`);
+              loadIndexedDocuments();
+              setVoiceState('standby');
+            } else {
+              appendAiBubble("Could not index document: " + (res.message || "Unknown error"));
+              setVoiceState('standby');
+            }
+          } catch (err) {
+            badge.remove();
+            appendAiBubble("Ingestion error: " + err);
+            setVoiceState('standby');
+          }
+        } else {
+          setTimeout(() => {
+            badge.remove();
+            appendAiBubble(`Browser Demo: Indexed **${file.name}** into Knowledge Vault!`);
+            setVoiceState('standby');
+          }, 1000);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function focusDocQuery(docId, filename) {
+      activeSelectedDocId = docId;
+      switchTab('docs');
+      const input = document.getElementById('docQueryInput');
+      if (input) {
+        input.placeholder = `Ask question about ${filename}...`;
+        input.focus();
+      }
+      const streamInput = document.getElementById('streamInput');
+      if (streamInput) {
+        streamInput.value = `In ${filename}: `;
+        streamInput.focus();
+      }
+    }
+
+    async function executeDocQuery(forcedDocId = null) {
+      const input = document.getElementById('docQueryInput');
+      const query = input ? input.value.trim() : '';
+      if (!query) return;
+
+      input.value = '';
+      const docId = forcedDocId || activeSelectedDocId;
+      appendUserBubble(query, 'Joshua');
+      setVoiceState('thinking');
+
+      const stream = document.getElementById('chatStream');
+      const badge = document.createElement('div');
+      badge.className = 'max-w-[90%] bg-blue-950/80 border border-blue-500/40 rounded-xl p-3 flex items-center gap-2.5 text-xs text-blue-300 shadow-lg';
+      badge.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full bg-blue-400 animate-ping"></span>
+        <span class="font-mono">🔍 Querying Knowledge Vault with local RAG retrieval...</span>
+      `;
+      stream.appendChild(badge);
+      stream.scrollTop = stream.scrollHeight;
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.query_document(query, docId);
+          badge.remove();
+          if (res && res.status === 'success') {
+            appendDocAnswerBubble(res);
+            await new Promise(r => setTimeout(r, 220));
+            while (await window.pywebview.api.is_speaking()) {
+              await new Promise(r => setTimeout(r, 50));
+            }
+            setVoiceState('standby');
+          } else {
+            appendAiBubble(res.answer || res.message || "No relevant information found.");
+            setVoiceState('standby');
+          }
+        } catch (e) {
+          badge.remove();
+          appendAiBubble("Query error: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        setTimeout(() => {
+          badge.remove();
+          appendAiBubble("Browser Simulation: Document answer retrieved.");
+          setVoiceState('standby');
+        }, 1200);
+      }
+    }
+
+    async function summarizeDoc(docId) {
+      appendUserBubble("Summarize this document for me", 'Joshua');
+      setVoiceState('thinking');
+
+      const stream = document.getElementById('chatStream');
+      const badge = document.createElement('div');
+      badge.className = 'max-w-[90%] bg-indigo-950/80 border border-indigo-500/40 rounded-xl p-3 flex items-center gap-2.5 text-xs text-indigo-300 shadow-lg';
+      badge.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping"></span>
+        <span class="font-mono">📑 Compiling executive summary of document...</span>
+      `;
+      stream.appendChild(badge);
+      stream.scrollTop = stream.scrollHeight;
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.summarize_document(docId);
+          badge.remove();
+          if (res && res.status === 'success') {
+            appendDocAnswerBubble({
+              query: "Executive Summary",
+              answer: res.summary,
+              citations: [{ filename: res.filename, page: "Overview" }]
+            });
+            await new Promise(r => setTimeout(r, 220));
+            while (await window.pywebview.api.is_speaking()) {
+              await new Promise(r => setTimeout(r, 50));
+            }
+            setVoiceState('standby');
+          } else {
+            appendAiBubble("Could not summarize: " + (res.summary || res.message));
+            setVoiceState('standby');
+          }
+        } catch (e) {
+          badge.remove();
+          appendAiBubble("Summary error: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        setTimeout(() => {
+          badge.remove();
+          appendAiBubble("Browser Simulation: Summary generated.");
+          setVoiceState('standby');
+        }, 1200);
+      }
+    }
+
+    async function deleteDoc(docId) {
+      if (hasBridge()) {
+        try {
+          await window.pywebview.api.delete_document(docId);
+          loadIndexedDocuments();
+        } catch (e) {
+          console.error("Delete document error:", e);
+        }
+      }
+    }
+
+    function appendDocAnswerBubble(data) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const bubble = document.createElement('div');
+      bubble.className = 'flex flex-col items-start gap-1 max-w-[95%]';
+
+      const citationsHtml = (data.citations && data.citations.length > 0) ? `
+        <div class="flex items-center flex-wrap gap-1.5 pt-1 border-t border-slate-800/80 text-[10px] text-cyan-400 font-mono">
+          <span class="text-slate-500">Sources:</span>
+          ${data.citations.map(c => `<span class="px-2 py-0.5 rounded bg-slate-800/90 border border-slate-700 text-slate-300">📄 ${escapeHtml(c.filename)} [${escapeHtml(String(c.page))}]</span>`).join('')}
+        </div>
+      ` : '';
+
+      bubble.innerHTML = `
+        <span class="text-[10px] font-mono text-cyan-400 pl-1">IGIRS AI Knowledge Engine • ${time} • <span class="text-indigo-400">Local RAG</span></span>
+        <div class="w-full bg-slate-900/95 border border-cyan-500/40 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-2xl flex flex-col gap-2.5">
+          <div class="leading-relaxed whitespace-pre-wrap text-slate-200">${escapeHtml(data.answer)}</div>
+          ${citationsHtml}
+          <div class="flex items-center flex-wrap gap-2 pt-2 border-t border-slate-800 text-[10px] text-slate-400">
+            <button onclick="respeakMessage(this)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
+              <span>🔊</span> Re-speak
+            </button>
+            <button onclick="copyVisionAnalysis(this)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
+              <span>📋</span> Copy
+            </button>
+            <button onclick="insertPrompt('Elaborate further on: ')" class="px-2.5 py-1 rounded bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-300 transition-colors flex items-center gap-1">
+              <span>💬</span> Follow-up
+            </button>
+            <span class="ml-auto font-mono text-cyan-400">Document RAG Active</span>
+          </div>
+        </div>
+      `;
+      stream.appendChild(bubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // PHASE 8: WEB AUTOMATION, PRICE RADAR & SCRAPING ENGINE
+    // ═══════════════════════════════════════════════════════════════════
+
+    let activeWebSubmode = 'price';
+
+    function switchWebSubmode(sub) {
+      activeWebSubmode = sub;
+      ['price', 'scrape', 'capture'].forEach(m => {
+        const btn = document.getElementById(`webSubBtn-${m}`);
+        const view = document.getElementById(`webSubView-${m}`);
+        if (btn) {
+          if (m === sub) {
+            btn.className = 'px-2 py-0.5 rounded bg-blue-600 text-white font-medium transition-all';
+          } else {
+            btn.className = 'px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 transition-all';
+          }
+        }
+        if (view) {
+          if (m === sub) view.classList.remove('hidden');
+          else view.classList.add('hidden');
+        }
+      });
+    }
+
+    function quickPriceCheck(query) {
+      const input = document.getElementById('priceQueryInput');
+      if (input) input.value = query;
+      executePriceCheckGui();
+    }
+
+    async function executePriceCheckGui() {
+      const input = document.getElementById('priceQueryInput');
+      const query = input ? input.value.trim() : '';
+      if (!query) return;
+
+      appendUserBubble(`Compare prices for ${query}`, 'Joshua');
+      setVoiceState('thinking');
+
+      const sites = [];
+      if (document.getElementById('storeFilterAmazon')?.checked) sites.push('amazon');
+      if (document.getElementById('storeFilterFlipkart')?.checked) sites.push('flipkart');
+      if (sites.length === 0) sites.push('amazon', 'flipkart');
+
+      const stream = document.getElementById('chatStream');
+      const badge = document.createElement('div');
+      badge.className = 'max-w-[90%] bg-cyan-950/80 border border-cyan-500/40 rounded-xl p-3 flex items-center gap-2.5 text-xs text-cyan-300 shadow-lg';
+      badge.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+        <span class="font-mono">🛒 Price Radar: Scanning live prices on ${sites.join(' & ')}...</span>
+      `;
+      stream.appendChild(badge);
+      stream.scrollTop = stream.scrollHeight;
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.check_prices(query, sites, true);
+          badge.remove();
+          if (res && res.status === 'success') {
+            renderPriceCards(res);
+            appendPriceCardBubble(res);
+            await new Promise(r => setTimeout(r, 220));
+            while (await window.pywebview.api.is_speaking()) {
+              await new Promise(r => setTimeout(r, 50));
+            }
+            setVoiceState('standby');
+          } else {
+            appendAiBubble(res.message || "Could not retrieve live prices right now.");
+            setVoiceState('standby');
+          }
+        } catch (e) {
+          badge.remove();
+          appendAiBubble("Price check error: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        setTimeout(() => {
+          badge.remove();
+          const mockRes = {
+            status: "success",
+            query: query,
+            total_found: 2,
+            summary: `I found ${query} on Flipkart for ₹64,999, which is ₹4,000 cheaper than Amazon (₹68,999).`,
+            best_deal: { store: "Flipkart", title: query, price: "₹64,999", rating: "4.6 ★", url: "https://flipkart.com" },
+            products: [
+              { store: "Flipkart", title: `${query} (128GB)`, price: "₹64,999", original_price: "₹79,900", discount: "18% off", rating: "4.6 ★", url: "https://flipkart.com", image: "" },
+              { store: "Amazon", title: `${query} (128GB)`, price: "₹68,999", original_price: "₹79,900", rating: "4.5 out of 5", url: "https://amazon.in", image: "" }
+            ]
+          };
+          renderPriceCards(mockRes);
+          appendPriceCardBubble(mockRes);
+          setVoiceState('standby');
+        }, 1200);
+      }
+    }
+
+    function renderPriceCards(res) {
+      const container = document.getElementById('priceCardsContainer');
+      const banner = document.getElementById('priceDealBanner');
+      const summaryText = document.getElementById('priceDealSummary');
+      if (!container) return;
+
+      if (banner && summaryText && res.summary) {
+        banner.classList.remove('hidden');
+        summaryText.innerText = res.summary;
+      }
+
+      const products = res.products || [];
+      if (products.length === 0) {
+        container.innerHTML = '<div class="p-3 text-center text-slate-500 text-xs">No listings found.</div>';
+        return;
+      }
+
+      container.innerHTML = products.map((p, idx) => {
+        const isBest = (res.best_deal && res.best_deal.price === p.price);
+        const storeBadgeClass = p.store.toLowerCase() === 'amazon' ? 'bg-amber-950/80 text-amber-300 border-amber-500/50' : 'bg-blue-950/80 text-blue-300 border-blue-500/50';
+        return `
+          <div class="p-2.5 rounded-xl bg-slate-900/90 border ${isBest ? 'border-emerald-500/70 shadow-lg shadow-emerald-500/10' : 'border-slate-800'} flex items-start gap-2.5 transition-all hover:border-slate-700">
+            <div class="w-10 h-10 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center flex-shrink-0 text-sm overflow-hidden">
+              ${p.image ? `<img src="${p.image}" class="w-full h-full object-contain" />` : (p.store.toLowerCase() === 'amazon' ? '📦' : '🛒')}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="px-1.5 py-0.5 rounded text-[9px] font-mono border ${storeBadgeClass}">${escapeHtml(p.store)}</span>
+                ${isBest ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-500/60 font-semibold">🌟 BEST DEAL</span>' : ''}
+                ${p.discount ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-rose-950 text-rose-300 border border-rose-500/40">${escapeHtml(p.discount)}</span>` : ''}
+                ${p.rating ? `<span class="text-[10px] text-amber-400 font-mono ml-auto">${escapeHtml(p.rating)}</span>` : ''}
+              </div>
+              <p class="text-[11px] font-medium text-slate-200 truncate mt-1" title="${escapeHtml(p.title)}">${escapeHtml(p.title)}</p>
+              <div class="flex items-center justify-between mt-1 text-xs">
+                <div class="flex items-baseline gap-1.5">
+                  <span class="font-bold text-cyan-400 font-mono">${escapeHtml(p.price)}</span>
+                  ${p.original_price ? `<span class="text-[10px] text-slate-500 line-through font-mono">${escapeHtml(p.original_price)}</span>` : ''}
+                </div>
+                ${p.url ? `<a href="${p.url}" target="_blank" class="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-0.5 font-medium">Buy Now ↗</a>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function appendPriceCardBubble(res) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const bubble = document.createElement('div');
+      bubble.className = 'flex flex-col items-start gap-1 max-w-[95%]';
+
+      const productsHtml = (res.products || []).slice(0, 4).map(p => {
+        const isBest = (res.best_deal && res.best_deal.price === p.price);
+        const storeBadgeClass = p.store.toLowerCase() === 'amazon' ? 'bg-amber-950/80 text-amber-300 border-amber-500/50' : 'bg-blue-950/80 text-blue-300 border-blue-500/50';
+        return `
+          <div class="p-2.5 rounded-xl bg-slate-950/90 border ${isBest ? 'border-emerald-500/80 shadow-md shadow-emerald-500/20' : 'border-slate-800'} flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center flex-shrink-0 text-sm overflow-hidden">
+              ${p.image ? `<img src="${p.image}" class="w-full h-full object-contain" />` : (p.store.toLowerCase() === 'amazon' ? '📦' : '🛒')}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-1.5">
+                <span class="px-1.5 py-0.5 rounded text-[9px] font-mono border ${storeBadgeClass}">${escapeHtml(p.store)}</span>
+                ${isBest ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-500/60 font-bold">BEST DEAL</span>' : ''}
+                ${p.rating ? `<span class="text-[10px] text-amber-400 ml-auto font-mono">${escapeHtml(p.rating)}</span>` : ''}
+              </div>
+              <p class="text-xs font-semibold text-slate-200 truncate mt-0.5">${escapeHtml(p.title)}</p>
+              <div class="flex items-center justify-between text-xs mt-0.5">
+                <span class="font-bold text-emerald-400 font-mono">${escapeHtml(p.price)}</span>
+                ${p.url ? `<a href="${p.url}" target="_blank" class="text-[10px] text-cyan-400 hover:text-cyan-300 font-medium">View Store ↗</a>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      bubble.innerHTML = `
+        <span class="text-[10px] font-mono text-cyan-400 pl-1">IGIRS Price Radar • ${time} • <span class="text-emerald-400">Multi-Store Intel</span></span>
+        <div class="w-full bg-slate-900/95 border border-cyan-500/40 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-2xl flex flex-col gap-3">
+          <div class="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/50 text-xs text-emerald-300 font-medium flex items-center gap-2">
+            <span>🏷️</span>
+            <span>${escapeHtml(res.summary)}</span>
+          </div>
+          <div class="flex flex-col gap-2">
+            ${productsHtml}
+          </div>
+          <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[10px] text-slate-400">
+            <button onclick="respeakMessage(this)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
+              <span>🔊</span> Re-speak
+            </button>
+            <span class="font-mono text-cyan-400">Amazon & Flipkart Live Scrape</span>
+          </div>
+        </div>
+      `;
+      stream.appendChild(bubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function quickScrape(url) {
+      const input = document.getElementById('scrapeUrlInput');
+      if (input) input.value = url;
+      executeScrapeGui();
+    }
+
+    async function executeScrapeGui() {
+      const input = document.getElementById('scrapeUrlInput');
+      const url = input ? input.value.trim() : '';
+      if (!url) return;
+
+      const modeRadio = document.querySelector('input[name="scrapeModeRadio"]:checked');
+      const mode = modeRadio ? modeRadio.value : 'content';
+
+      appendUserBubble(`Scrape webpage: ${url} (${mode})`, 'Joshua');
+      setVoiceState('thinking');
+
+      const stream = document.getElementById('chatStream');
+      const badge = document.createElement('div');
+      badge.className = 'max-w-[90%] bg-indigo-950/80 border border-indigo-500/40 rounded-xl p-3 flex items-center gap-2.5 text-xs text-indigo-300 shadow-lg';
+      badge.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping"></span>
+        <span class="font-mono">📖 Smart Scraper: Extracting clean content from ${url}...</span>
+      `;
+      stream.appendChild(badge);
+      stream.scrollTop = stream.scrollHeight;
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.scrape_url(url, mode, true);
+          badge.remove();
+          if (res && res.status === 'success') {
+            renderScrapeResult(res);
+            appendScrapeBubble(res);
+            await new Promise(r => setTimeout(r, 220));
+            while (await window.pywebview.api.is_speaking()) {
+              await new Promise(r => setTimeout(r, 50));
+            }
+            setVoiceState('standby');
+          } else {
+            appendAiBubble(res.message || "Failed to extract web content.");
+            setVoiceState('standby');
+          }
+        } catch (e) {
+          badge.remove();
+          appendAiBubble("Scrape error: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        setTimeout(() => {
+          badge.remove();
+          const mock = {
+            status: "success",
+            url: url,
+            title: "Simulated Web Document",
+            word_count: 245,
+            content: `# Example Scraped Article\n\nThis is a clean extraction of the article without ads or navigation menus.`,
+            summary: `Extracted 245 words from '${url}'.`
+          };
+          renderScrapeResult(mock);
+          appendScrapeBubble(mock);
+          setVoiceState('standby');
+        }, 1200);
+      }
+    }
+
+    function renderScrapeResult(res) {
+      const header = document.getElementById('scrapeResultHeader');
+      const titleEl = document.getElementById('scrapeResultTitle');
+      const countEl = document.getElementById('scrapeResultWordCount');
+      const bodyEl = document.getElementById('scrapeResultBody');
+
+      if (header && titleEl && countEl) {
+        header.classList.remove('hidden');
+        titleEl.innerText = res.title || res.url;
+        countEl.innerText = `${res.word_count || 0} words`;
+      }
+
+      if (bodyEl) {
+        if (res.tables && res.tables.length > 0) {
+          let tablesHtml = res.tables.map((tbl, i) => `
+            <div class="mb-3">
+              <span class="text-indigo-400 font-bold text-[11px]">Table #${i+1}</span>
+              <table class="w-full text-[10px] text-left border-collapse border border-slate-800 mt-1">
+                ${tbl.map((row, ri) => `
+                  <tr class="${ri === 0 ? 'bg-slate-900 font-semibold text-slate-200' : 'border-t border-slate-800/60 text-slate-300'}">
+                    ${row.map(cell => `<td class="p-1 border border-slate-800/80">${escapeHtml(cell)}</td>`).join('')}
+                  </tr>
+                `).join('')}
+              </table>
+            </div>
+          `).join('');
+          bodyEl.innerHTML = tablesHtml;
+        } else if (res.links && res.links.length > 0) {
+          bodyEl.innerHTML = `
+            <div class="flex flex-col gap-1 text-[11px]">
+              ${res.links.map(l => `<a href="${l.url}" target="_blank" class="text-blue-400 hover:underline truncate">• ${escapeHtml(l.text)} (${escapeHtml(l.url)})</a>`).join('')}
+            </div>
+          `;
+        } else {
+          bodyEl.innerText = res.content || res.summary || '';
+        }
+      }
+    }
+
+    function appendScrapeBubble(res) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const bubble = document.createElement('div');
+      bubble.className = 'flex flex-col items-start gap-1 max-w-[95%]';
+
+      const previewText = res.content ? (res.content.length > 500 ? res.content.substring(0, 500) + '...' : res.content) : res.summary;
+
+      bubble.innerHTML = `
+        <span class="text-[10px] font-mono text-cyan-400 pl-1">IGIRS Smart Scraper • ${time} • <span class="text-indigo-400">${escapeHtml(res.title || res.url)}</span></span>
+        <div class="w-full bg-slate-900/95 border border-indigo-500/40 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-2xl flex flex-col gap-2.5">
+          <div class="flex items-center justify-between text-[11px] pb-1 border-b border-slate-800">
+            <span class="font-semibold text-slate-200 truncate max-w-[250px]">${escapeHtml(res.title || 'Scraped Content')}</span>
+            <span class="font-mono text-indigo-400">${res.word_count || 0} words</span>
+          </div>
+          <div class="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap">${escapeHtml(previewText)}</div>
+          <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[10px] text-slate-400">
+            <button onclick="respeakMessage(this)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
+              <span>🔊</span> Re-speak
+            </button>
+            <button onclick="copyVisionAnalysis(this)" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1">
+              <span>📋</span> Copy
+            </button>
+            <span class="font-mono text-cyan-400">Boilerplate & Ads Stripped</span>
+          </div>
+        </div>
+      `;
+      stream.appendChild(bubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function quickCapture(url) {
+      const input = document.getElementById('captureUrlInput');
+      if (input) input.value = url;
+      executeWebCaptureGui();
+    }
+
+    async function executeWebCaptureGui() {
+      const input = document.getElementById('captureUrlInput');
+      const url = input ? input.value.trim() : '';
+      if (!url) return;
+
+      const fullPage = document.getElementById('captureFullPageCheck')?.checked || false;
+
+      appendUserBubble(`Capture webpage screenshot: ${url}`, 'Joshua');
+      setVoiceState('thinking');
+
+      const stream = document.getElementById('chatStream');
+      const badge = document.createElement('div');
+      badge.className = 'max-w-[90%] bg-rose-950/80 border border-rose-500/40 rounded-xl p-3 flex items-center gap-2.5 text-xs text-rose-300 shadow-lg';
+      badge.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full bg-rose-400 animate-ping"></span>
+        <span class="font-mono">📸 Web Engine: Capturing screenshot of ${url}...</span>
+      `;
+      stream.appendChild(badge);
+      stream.scrollTop = stream.scrollHeight;
+
+      if (hasBridge()) {
+        try {
+          const res = await window.pywebview.api.capture_web_screenshot(url, fullPage);
+          badge.remove();
+          if (res && res.status === 'success') {
+            const previewImg = document.getElementById('capturePreviewImage');
+            const placeholder = document.getElementById('capturePreviewPlaceholder');
+            if (previewImg && res.preview_base64) {
+              previewImg.src = res.preview_base64;
+              previewImg.classList.remove('hidden');
+              if (placeholder) placeholder.classList.add('hidden');
+            }
+            appendWebCaptureBubble(res);
+            setVoiceState('standby');
+          } else {
+            appendAiBubble(res.message || "Failed to capture web screenshot.");
+            setVoiceState('standby');
+          }
+        } catch (e) {
+          badge.remove();
+          appendAiBubble("Web capture error: " + e);
+          setVoiceState('standby');
+        }
+      } else {
+        setTimeout(() => {
+          badge.remove();
+          appendAiBubble("Browser Simulation: Web screenshot captured.");
+          setVoiceState('standby');
+        }, 1200);
+      }
+    }
+
+    function appendWebCaptureBubble(res) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const bubble = document.createElement('div');
+      bubble.className = 'flex flex-col items-start gap-1 max-w-[95%]';
+
+      const imgTag = res.preview_base64 ? `
+        <div class="w-full rounded-xl overflow-hidden border border-slate-700 bg-slate-950 mt-1">
+          <img src="${res.preview_base64}" class="w-full h-auto max-h-[260px] object-cover" />
+        </div>
+      ` : '';
+
+      bubble.innerHTML = `
+        <span class="text-[10px] font-mono text-cyan-400 pl-1">IGIRS Visual Web Capture • ${time} • <span class="text-rose-400">${escapeHtml(res.title || res.url)}</span></span>
+        <div class="w-full bg-slate-900/95 border border-rose-500/40 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-2xl flex flex-col gap-2.5">
+          ${imgTag}
+          <div class="flex items-center justify-between text-[11px] text-slate-400">
+            <span>Saved to: <span class="font-mono text-slate-200">${escapeHtml(res.screenshot_path || '')}</span></span>
+            <span class="font-mono text-rose-400">${res.full_page ? 'Full Page' : 'Viewport'}</span>
+          </div>
+        </div>
+      `;
+      stream.appendChild(bubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    // Global Key & Canvas Barge-In Listeners
+    document.addEventListener('keydown', async (e) => {
+      // Ctrl+Shift+S triggers instant Multimodal Screen Vision
+      if (e.ctrlKey && e.shiftKey && (e.code === 'KeyS' || e.key === 'S' || e.key === 's')) {
+        e.preventDefault();
+        console.log("👁️ Ctrl+Shift+S Screen Vision Hotkey triggered!");
+        triggerScreenVision();
+        return;
+      }
+
+      // If user presses Spacebar or Escape while assistant is speaking, trigger instant barge-in!
+      if ((e.code === 'Space' || e.code === 'Escape') && currentVoiceState === 'speaking') {
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        if (activeTag !== 'input' && activeTag !== 'textarea') {
+          e.preventDefault();
+          console.log("⚡ Space/Escape Barge-In triggered!");
+          manualBargeInTriggered = true;
+          if (hasBridge()) {
+            await window.pywebview.api.trigger_barge_in();
+          }
+        }
+      }
+    });
+
+    // Clicking the 3D Orb canvas while speaking immediately barges in
+    const orbCanvasEl = document.getElementById('webglCanvas');
+    if (orbCanvasEl) {
+      orbCanvasEl.addEventListener('click', async () => {
+        if (currentVoiceState === 'speaking') {
+          console.log("⚡ 3D Orb Click Barge-In triggered!");
+          manualBargeInTriggered = true;
+          if (hasBridge()) {
+            await window.pywebview.api.trigger_barge_in();
+          }
+        }
+      });
+    }
+
+    function appendUserBubble(text, user) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const userBubble = document.createElement('div');
+      userBubble.className = 'flex flex-col items-end gap-1';
+      userBubble.innerHTML = `
+        <span class="text-[10px] font-mono text-slate-400 pr-1">${escapeHtml(user)} • ${time}</span>
+        <div class="max-w-[85%] bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 text-xs leading-relaxed shadow-lg">
+          ${escapeHtml(text)}
+        </div>
+      `;
+      stream.appendChild(userBubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function appendToolBadge(toolLog) {
+      const stream = document.getElementById('chatStream');
+      const badge = document.createElement('div');
+      badge.className = 'max-w-[90%] bg-slate-950/90 border border-amber-500/30 rounded-xl p-3 flex flex-col gap-1.5 shadow-lg';
+      if (toolLog.type === 'call') {
+        badge.innerHTML = `
+          <div class="flex items-center justify-between text-xs">
+            <span class="flex items-center gap-1.5 text-amber-400 font-mono font-medium text-[11px]">
+              <span>⚙️</span> Tool Invocation: ${escapeHtml(toolLog.name)}()
+            </span>
+            <span class="px-2 py-0.5 text-[9px] font-mono rounded bg-amber-950/80 text-amber-300 border border-amber-800/80">
+              EXECUTING
+            </span>
+          </div>
+          <div class="text-[10px] font-mono text-slate-300 bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 truncate">
+            ${escapeHtml(JSON.stringify(toolLog.args))}
+          </div>
+        `;
+      } else {
+        badge.innerHTML = `
+          <div class="flex items-center justify-between text-xs">
+            <span class="flex items-center gap-1.5 text-emerald-400 font-mono font-medium text-[11px]">
+              <span>✔</span> Tool Result: ${escapeHtml(toolLog.name)}
+            </span>
+            <span class="px-2 py-0.5 text-[9px] font-mono rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/80">
+              200 OK
+            </span>
+          </div>
+          <div class="text-[10px] font-mono text-slate-300 bg-slate-900/80 p-1.5 rounded-lg border border-slate-800">
+            ${escapeHtml(toolLog.result.length > 180 ? toolLog.result.substring(0, 180) + '...' : toolLog.result)}
+          </div>
+        `;
+      }
+      stream.appendChild(badge);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function appendAiBubble(response) {
+      const stream = document.getElementById('chatStream');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // Clean display if raw tool call JSON is passed
+      let displayText = response;
+      if (typeof displayText === 'string' && displayText.trim().startsWith('{') && displayText.trim().endsWith('}')) {
+        try {
+          const parsed = JSON.parse(displayText.trim());
+          const fn = parsed.name || parsed.function || parsed.action;
+          if (fn === 'stop_listening' || fn === 'stop_listen' || fn === 'stop_voice' || fn === 'mute') {
+            displayText = "I've stopped listening, Joshua. Click the mic whenever you need me!";
+          } else if (fn) {
+            displayText = `Executing ${fn}...`;
+          }
+        } catch (e) {}
+      }
+
+      const aiBubble = document.createElement('div');
+      aiBubble.className = 'flex flex-col items-start gap-1';
+      aiBubble.innerHTML = `
+        <span class="text-[10px] font-mono text-blue-400 pl-1">IGIRS AI • ${time}</span>
+        <div class="max-w-[90%] bg-slate-900/90 border border-slate-800 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-xl flex flex-col gap-2">
+          <p class="leading-relaxed">${escapeHtml(displayText)}</p>
+          <div class="flex items-center gap-3 pt-2 border-t border-slate-800/80 text-[10px] text-slate-400">
+            <button onclick="respeakMessage(this)" class="hover:text-blue-300 flex items-center gap-1 transition-colors">
+              <span>🔊</span> Re-speak
+            </button>
+            <span class="ml-auto font-mono text-slate-500">Llama-3.2-11B NIM</span>
+          </div>
+        </div>
+      `;
+      stream.appendChild(aiBubble);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function respeakMessage(btn) {
+      if (!btn) return;
+      // Search ancestors for message card container
+      const card = btn.closest('.rounded-2xl') || (btn.parentElement ? btn.parentElement.parentElement : null);
+      if (!card) return;
+
+      // Look for text element
+      const p = card.querySelector('p, .leading-relaxed');
+      let text = '';
+      if (p) {
+        text = p.innerText || p.textContent || '';
+      }
+      if (!text || !text.trim()) {
+        const clone = card.cloneNode(true);
+        const toRemove = clone.querySelectorAll('button, .font-mono, .border-t, .text-\\[10px\\], .text-xs.font-mono');
+        toRemove.forEach(el => el.remove());
+        text = clone.innerText || clone.textContent || '';
+      }
+      text = text.trim();
+      if (!text) return;
+
+      // Visual feedback: animate speaker icon
+      const icon = btn.querySelector('span');
+      if (icon) {
+        icon.classList.add('animate-bounce');
+        setTimeout(() => icon.classList.remove('animate-bounce'), 1200);
+      }
+      btn.classList.add('text-blue-400');
+      setTimeout(() => btn.classList.remove('text-blue-400'), 2000);
+
+      if (hasBridge() && window.pywebview.api.respeak) {
+        window.pywebview.api.respeak(text);
+      } else if (hasBridge() && window.pywebview.api.speak_text) {
+        window.pywebview.api.speak_text(text);
+      } else {
+        // Browser fallback
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(text);
+          utter.onstart = () => setVoiceState('speaking');
+          utter.onend = () => setVoiceState('standby');
+          window.speechSynthesis.speak(utter);
+        } else {
+          setVoiceState('speaking');
+          setTimeout(() => setVoiceState('standby'), 2500);
+        }
+      }
+    }
+
+    function insertPrompt(p) {
+      document.getElementById('streamInput').value = p;
+      sendStreamMessage();
+    }
+
+    async function loadFacts() {
+      if (!hasBridge()) return;
+      try {
+        const facts = await window.pywebview.api.get_facts();
+        const list = document.getElementById('factsList');
+        list.innerHTML = '';
+        facts.forEach((f, idx) => {
+          const item = document.createElement('div');
+          item.className = 'p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs group';
+          item.innerHTML = `
+            <span class="text-slate-300">• ${escapeHtml(f)}</span>
+            <button onclick="deleteFact('${escapeHtml(f)}', this)" class="text-slate-500 hover:text-rose-400 text-xs">✕</button>
+          `;
+          list.appendChild(item);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function addFact() {
+      const input = document.getElementById('newFactInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      if (hasBridge()) {
+        await window.pywebview.api.add_fact(text);
+        loadFacts();
+      } else {
+        const list = document.getElementById('factsList');
+        const item = document.createElement('div');
+        item.className = 'p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs group';
+        item.innerHTML = `
+          <span class="text-slate-300">• ${escapeHtml(text)}</span>
+          <button onclick="this.parentElement.remove()" class="text-slate-500 hover:text-rose-400 text-xs">✕</button>
+        `;
+        list.appendChild(item);
+      }
+    }
+
+    async function deleteFact(factText, btn) {
+      if (hasBridge()) {
+        await window.pywebview.api.remove_fact(factText);
+      }
+      btn.parentElement.remove();
+    }
+
+    async function refreshTelemetry() {
+      if (!hasBridge()) return;
+      try {
+        const t = await window.pywebview.api.get_telemetry();
+        const out = document.getElementById('benchOutput');
+        out.innerHTML = `<span class="text-emerald-400 font-bold">✓ Live System Telemetry</span>\n` +
+          `• OS: ${t.os} | Host: ${t.hostname}\n` +
+          `• CPU: ${t.cpu_usage_percent}\n` +
+          `• RAM: ${t.ram_usage_percent}\n` +
+          `• Battery: ${t.battery_percent} (${t.battery_power_plugged})`;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function toggleHud() {
+      const p = document.getElementById('hudPanels');
+      const txt = document.getElementById('toggleText');
+      if (p.classList.contains('opacity-0')) {
+        p.classList.remove('opacity-0', 'pointer-events-none');
+        txt.innerText = 'Hide Panels';
+      } else {
+        p.classList.add('opacity-0', 'pointer-events-none');
+        txt.innerText = 'Show Panels';
+      }
+    }
+
+    function clearChat() {
+      if (hasBridge()) {
+        window.pywebview.api.clear_history();
+      }
+      document.getElementById('chatStream').innerHTML = `
+        <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800/60 text-xs text-slate-400 flex items-start gap-2.5">
+          <span class="text-blue-400 font-mono text-sm">⚡</span>
+          <div>
+            <p class="font-semibold text-slate-200">Chat Log Cleared</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">IGIRS AI is ready for new instructions.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    // Live Clock & Periodic Telemetry
+    setInterval(() => {
+      document.getElementById('liveClock').innerText = new Date().toLocaleTimeString('en-US', { hour12: true });
+    }, 1000);
+
+    // Initial load when bridge is ready
+    window.addEventListener('pywebviewready', () => {
+      loadFacts();
+      refreshTelemetry();
+    });
+  </script>
+
+</body>
+</html>

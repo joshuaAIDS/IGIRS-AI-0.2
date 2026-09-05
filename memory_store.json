@@ -1,0 +1,74 @@
+[
+  {
+    "role": "user",
+    "content": "What is the current time?"
+  },
+  {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-d273c9e5c1484e5e9576ee24ffd7bde1",
+        "type": "function",
+        "function": {
+          "name": "get_time_date",
+          "arguments": "{}"
+        }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-d273c9e5c1484e5e9576ee24ffd7bde1",
+    "name": "get_time_date",
+    "content": "{\"date\": \"Friday, September 04, 2026\", \"time_12hr\": \"07:38:24 PM\", \"time_24hr\": \"19:38:24\", \"iso_format\": \"2026-09-04T19:38:24.750764\"}"
+  },
+  {
+    "role": "assistant",
+    "content": "It's 7:38 PM right now, Joshua."
+  },
+  {
+    "role": "user",
+    "content": "Hi IGIRS, who are you and what tools do you have?"
+  },
+  {
+    "role": "assistant",
+    "content": "I'm IGIRS AI, your personal companion created just for you, Joshua. I'm a desktop voice and text assistant, here to help with anything you need - answers, reminders, media control, and more!"
+  },
+  {
+    "role": "user",
+    "content": "Hi IGIRS, who are you and what tools do you have?"
+  },
+  {
+    "role": "assistant",
+    "content": "I'm IGIRS AI, your personal companion, Joshua. I've got tools for answers, reminders, media control, timers, weather, and more at your fingertips."
+  },
+  {
+    "role": "user",
+    "content": "What is the current time?"
+  },
+  {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "chatcmpl-tool-c064821b40a44d399af422111a7725af",
+        "type": "function",
+        "function": {
+          "name": "get_time_date",
+          "arguments": "{}"
+        }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "chatcmpl-tool-c064821b40a44d399af422111a7725af",
+    "name": "get_time_date",
+    "content": "{\"date\": \"Saturday, September 05, 2026\", \"time_12hr\": \"12:07:57 PM\", \"time_24hr\": \"12:07:57\", \"iso_format\": \"2026-09-05T12:07:57.319202\"}"
+  },
+  {
+    "role": "assistant",
+    "content": "It's 12:07 PM right now, Joshua."
+  }
+]
