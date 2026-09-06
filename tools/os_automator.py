@@ -60,7 +60,7 @@ class OSAutomator:
         # 1. Search Files
         if action in ["search", "find"]:
             if not query:
-                return {"status": "error", "message": "Search query is required, Sir."}
+                return {"status": "error", "message": "Please tell me what file or folder name you're looking for."}
             
             clean_q = query.strip().lower()
             found_files = []
@@ -92,9 +92,9 @@ class OSAutomator:
                     break
 
             if found_files:
-                spoken = f"I found {len(found_files)} item{'s' if len(found_files) > 1 else ''} matching '{query}', Sir. The first is {found_files[0]['name']}."
+                spoken = f"I found {len(found_files)} item{'s' if len(found_files) > 1 else ''} matching '{query}'. The first one is {found_files[0]['name']}."
             else:
-                spoken = f"I scanned your user folders but could not find any files matching '{query}', Sir."
+                spoken = f"I checked your folders but couldn't find anything matching '{query}'."
 
             return {
                 "status": "success",
@@ -117,7 +117,7 @@ class OSAutomator:
                     "status": "success",
                     "action": "create_folder",
                     "path": str(target_path.resolve()),
-                    "spoken_summary": f"Folder '{target_path.name}' created on your Desktop, Sir."
+                    "spoken_summary": f"Created the '{target_path.name}' folder on your Desktop!"
                 }
             except Exception as e:
                 return {"status": "error", "message": f"Could not create folder: {str(e)}"}
@@ -136,7 +136,7 @@ class OSAutomator:
                     "status": "success",
                     "action": "create_file",
                     "path": str(target_path.resolve()),
-                    "spoken_summary": f"File '{target_path.name}' saved successfully, Sir."
+                    "spoken_summary": f"Saved '{target_path.name}' for you!"
                 }
             except Exception as e:
                 return {"status": "error", "message": f"Failed to create file: {str(e)}"}
@@ -156,7 +156,7 @@ class OSAutomator:
                     target_path = found
 
             if not target_path.exists() or not target_path.is_file():
-                return {"status": "error", "message": f"File '{path or query}' was not found, Sir."}
+                return {"status": "error", "message": f"Couldn't find '{path or query}'."}
 
             try:
                 with open(target_path, "r", encoding="utf-8", errors="replace") as f:
@@ -170,7 +170,7 @@ class OSAutomator:
                     "path": str(target_path.resolve()),
                     "content": text_content,
                     "preview": preview,
-                    "spoken_summary": f"Here is the content of {target_path.name}, Sir."
+                    "spoken_summary": f"Here's what's inside {target_path.name}:"
                 }
             except Exception as e:
                 return {"status": "error", "message": f"Could not read file: {str(e)}"}
@@ -186,7 +186,7 @@ class OSAutomator:
                         break
 
             if not target_path.exists():
-                return {"status": "error", "message": f"File '{path or query}' does not exist, Sir."}
+                return {"status": "error", "message": f"Couldn't find the file '{path or query}' to open."}
 
             try:
                 os.startfile(str(target_path.resolve()))
@@ -194,12 +194,12 @@ class OSAutomator:
                     "status": "success",
                     "action": "open_file",
                     "path": str(target_path.resolve()),
-                    "spoken_summary": f"Opened {target_path.name} in its default application, Sir."
+                    "spoken_summary": f"Opened {target_path.name} for you!"
                 }
             except Exception as e:
                 return {"status": "error", "message": f"Failed to open file: {str(e)}"}
 
-        return {"status": "error", "message": f"Unrecognized file action: '{action}', Sir."}
+        return {"status": "error", "message": f"I didn't recognize that file action: '{action}'."}
 
     def manage_processes(self, action: str, process_name: str = "") -> Dict[str, Any]:
         """
@@ -226,19 +226,19 @@ class OSAutomator:
             # Sort by memory descending
             top_memory = sorted(procs, key=lambda x: x['memory_mb'], reverse=True)[:6]
 
-            spoken_apps = ", ".join([f"{p['name']} consuming {int(p['memory_mb'])} megabytes" for p in top_memory[:3]])
+            spoken_apps = ", ".join([f"{p['name']} using {int(p['memory_mb'])} MB" for p in top_memory[:3]])
             return {
                 "status": "success",
                 "action": "list_heavy",
                 "total_processes": len(procs),
                 "top_memory": top_memory,
-                "spoken_summary": f"The heaviest active processes are {spoken_apps}, Sir."
+                "spoken_summary": f"The top apps using the most memory right now are {spoken_apps}."
             }
 
         # 2. Kill Process
         elif action in ["kill", "terminate", "close", "stop"]:
             if not process_name:
-                return {"status": "error", "message": "Process name is required, Sir."}
+                return {"status": "error", "message": "Which app or process would you like me to close?"}
 
             target = process_name.lower().strip()
             if not target.endswith(".exe") and not target.isdigit():
@@ -250,7 +250,7 @@ class OSAutomator:
             if target_exe.lower() in PROTECTED_PROCESSES or target.lower() in PROTECTED_PROCESSES:
                 return {
                     "status": "blocked",
-                    "message": f"I cannot terminate '{target_exe}', Sir. That is a protected Windows system component."
+                    "message": f"I can't close '{target_exe}' because it's a critical Windows system component."
                 }
 
             # Guard current python process
@@ -278,15 +278,15 @@ class OSAutomator:
                     "action": "kill",
                     "target": process_name,
                     "killed_count": killed_count,
-                    "spoken_summary": f"Terminated {killed_count} instance{'s' if killed_count > 1 else ''} of {killed_names[0]}, Sir."
+                    "spoken_summary": f"Closed {killed_count} instance{'s' if killed_count > 1 else ''} of {killed_names[0]}."
                 }
             else:
                 return {
                     "status": "not_found",
-                    "message": f"No running processes matching '{process_name}' were found, Sir."
+                    "message": f"Didn't find any running processes matching '{process_name}'."
                 }
 
-        return {"status": "error", "message": f"Unknown process action: '{action}', Sir."}
+        return {"status": "error", "message": f"I didn't recognize that process command: '{action}'."}
 
     def get_storage_status(self) -> Dict[str, Any]:
         """Scans all fixed disk drives and returns capacity & usage telemetry."""
@@ -320,9 +320,9 @@ class OSAutomator:
 
         primary = drives[0] if drives else None
         if primary:
-            spoken = f"Drive {primary['device']} has {primary['free_gb']} GB free out of {primary['total_gb']} GB ({primary['percent_used']}% utilized), Sir."
+            spoken = f"Drive {primary['device']} has {primary['free_gb']} GB free out of {primary['total_gb']} GB."
         else:
-            spoken = "Drive telemetry is unavailable, Sir."
+            spoken = "Storage info isn't available right now."
 
         return {
             "status": "success",
@@ -335,7 +335,7 @@ class OSAutomator:
     def empty_recycle_bin(self) -> Dict[str, Any]:
         """Empties the Windows Recycle Bin silently using the Windows Shell API."""
         if sys.platform != "win32":
-            return {"status": "error", "message": "Recycle Bin is only supported on Windows, Sir."}
+            return {"status": "error", "message": "Recycle Bin cleaning is only supported on Windows."}
 
         try:
             # SHEmptyRecycleBinW flags:
@@ -349,7 +349,7 @@ class OSAutomator:
             return {
                 "status": "success",
                 "code": result,
-                "spoken_summary": "Windows Recycle Bin has been emptied and storage reclaimed, Sir."
+                "spoken_summary": "Emptied your Recycle Bin and cleaned up the space!"
             }
         except Exception as e:
             logger.error(f"Empty Recycle Bin error: {e}")

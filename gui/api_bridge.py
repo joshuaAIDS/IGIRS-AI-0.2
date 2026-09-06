@@ -726,13 +726,13 @@ class DesktopApiBridge:
 
     # --- J.A.R.V.I.S. Executive Protocols & OS Bridge ---
 
-    def trigger_protocol(self, protocol_name: str, parameters: Optional[Dict[str, Any]] = None, speak: bool = True) -> Dict[str, Any]:
-        """Triggers a named J.A.R.V.I.S. Executive Protocol."""
+    def trigger_protocol(self, protocol_name: str, parameters: Dict[str, Any] = None, speak: bool = True) -> Dict[str, Any]:
+        """Triggers a named protocol."""
         self.notify_state("thinking")
         try:
             res = self._assistant.tools.protocols.execute_protocol(protocol_name=protocol_name, parameters=parameters)
             if res.get("status") == "success" and speak and self._assistant.tts.enabled:
-                self._assistant.tts.speak(res.get("spoken_summary", f"Protocol {protocol_name} executed, Sir."))
+                self._assistant.tts.speak(res.get("spoken_summary", f"Finished {protocol_name} mode."))
                 self.notify_state("speaking")
             else:
                 self.notify_state("standby")
@@ -756,7 +756,7 @@ class DesktopApiBridge:
         try:
             res = self._assistant.tools.os_automator.manage_processes(action="kill", process_name=process_name)
             if res.get("status") == "success" and speak and self._assistant.tts.enabled:
-                self._assistant.tts.speak(res.get("spoken_summary", f"Terminated {process_name}, Sir."))
+                self._assistant.tts.speak(res.get("spoken_summary", f"Closed {process_name}."))
                 self.notify_state("speaking")
             else:
                 self.notify_state("standby")
@@ -787,9 +787,8 @@ class DesktopApiBridge:
         try:
             res = self._assistant.tools.os_automator.empty_recycle_bin()
             if res.get("status") == "success" and speak and self._assistant.tts.enabled:
-                self._assistant.tts.speak(res.get("spoken_summary", "Recycle bin emptied, Sir."))
+                self._assistant.tts.speak(res.get("spoken_summary", "Recycle bin emptied!"))
             return res
         except Exception as e:
             logger.error(f"Bridge empty_trash error: {e}")
             return {"status": "error", "message": str(e)}
-

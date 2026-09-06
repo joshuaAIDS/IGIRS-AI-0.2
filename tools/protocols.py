@@ -44,7 +44,7 @@ class ProtocolsEngine:
         else:
             return {
                 "status": "error",
-                "message": f"Protocol '{protocol_name}' is not recognized, Sir. Available protocols: Focus, Stealth, Clean Slate, Sentry, Diagnostics."
+                "message": f"I didn't recognize that protocol mode: '{protocol_name}'. Available modes are: Focus, Stealth, Clean Slate, Sentry, and Diagnostics."
             }
 
     def _protocol_focus(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -88,7 +88,7 @@ class ProtocolsEngine:
         except Exception as e:
             logger.debug(f"Music launch note: {e}")
 
-        spoken = f"Protocol Focus engaged for {duration} minutes, Sir. Volume calibrated, distractions cleared, and focus soundtrack active."
+        spoken = f"All set for focus mode! Muted distractions, set volume to 35%, and kicked off some lo-fi beats for the next {duration} minutes."
         return {
             "status": "success",
             "protocol": "focus",
@@ -127,7 +127,7 @@ class ProtocolsEngine:
         except Exception as e:
             logger.debug(f"Minimize failed: {e}")
 
-        spoken = "Protocol Stealth initiated, Sir. Display dimmed to 20%, audio reduced to 10%, and all windows minimized. Running silent."
+        spoken = "Stealth mode on! Screen's dimmed down to 20%, volume's at 10%, and all your windows are minimized."
         return {
             "status": "success",
             "protocol": "stealth",
@@ -182,7 +182,7 @@ class ProtocolsEngine:
         gc.collect()
 
         freed_mb = round(freed_bytes / (1024 * 1024), 2)
-        spoken = f"Protocol Clean Slate complete, Sir. Purged {freed_files} temporary files, reclaimed {freed_mb} megabytes, and emptied the Windows Recycle Bin."
+        spoken = f"All cleaned up! Purged {freed_files} temporary files, freed up {freed_mb} megabytes, and emptied the Windows Recycle Bin."
 
         return {
             "status": "success",
@@ -216,7 +216,7 @@ class ProtocolsEngine:
         except Exception as e:
             logger.debug(f"Lock failed: {e}")
 
-        spoken = "Protocol Sentry initiated, Sir. Workstation display captured to security logs and terminal locked."
+        spoken = "Workstation locked and saved a security snapshot."
         return {
             "status": "success",
             "protocol": "sentry",
@@ -259,9 +259,9 @@ class ProtocolsEngine:
         active_processes = len(psutil.pids())
 
         spoken = (
-            f"All primary systems nominal, Sir. Power cell is at {bat_percent} and {is_plugged}. "
-            f"CPU is running at {cpu_percent}%, {ram_free_gb} gigabytes of memory are available, "
-            f"and network latency is {ping_ms}."
+            f"Everything's running smoothly! Your battery is at {bat_percent} ({is_plugged}), "
+            f"CPU is at {cpu_percent}%, you've got {ram_free_gb} GB of RAM free, "
+            f"and network ping is {ping_ms}."
         )
 
         return {

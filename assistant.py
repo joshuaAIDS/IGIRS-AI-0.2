@@ -284,8 +284,13 @@ class IGIRSAssistant:
 
         # Handle direct "stop listening" commands immediately
         if self.is_stop_listening_intent(user_input):
-            honorific = getattr(config, "JARVIS_HONORIFIC", "Sir") if getattr(config, "JARVIS_MODE", False) else self.memory.user_name
-            stop_reply = f"Standing by, {honorific}. Call me whenever you require assistance."
+            if getattr(config, "JARVIS_MODE", False):
+                honorific = getattr(config, "JARVIS_HONORIFIC", "Sir")
+                stop_reply = f"Standing by, {honorific}. Call me whenever you require assistance."
+            else:
+                user_first = self.memory.user_name.split()[0] if self.memory.user_name else ""
+                name_clause = f", {user_first}" if user_first else ""
+                stop_reply = f"Got it{name_clause}, I'll stop listening. Tap the mic or say hey whenever you want to talk!"
             self.memory.add_user_message(user_input)
             self.memory.add_assistant_message(stop_reply)
             if speak_response:

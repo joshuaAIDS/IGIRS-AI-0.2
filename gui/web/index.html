@@ -3635,11 +3635,11 @@
     }
 
     async function killProcessGui(procName) {
-      if (!confirm(`Are you sure you want to terminate ${procName}, Sir?`)) return;
+      if (!confirm(`Are you sure you want to close ${procName}?`)) return;
       if (hasBridge()) {
         try {
           const res = await window.pywebview.api.kill_app_task(procName);
-          appendAiBubble(res.spoken_summary || res.message || `Terminated ${procName}`);
+          appendAiBubble(res.spoken_summary || res.message || `Closed ${procName}`);
           refreshRunningTasksGui();
         } catch (e) {
           console.error("Kill error:", e);
@@ -3676,11 +3676,11 @@
     }
 
     async function emptyRecycleBinGui() {
-      if (!confirm("Empty the Windows Recycle Bin permanently, Sir?")) return;
+      if (!confirm("Empty the Windows Recycle Bin permanently?")) return;
       if (hasBridge()) {
         try {
           const res = await window.pywebview.api.empty_trash();
-          appendAiBubble(res.spoken_summary || "Windows Recycle Bin has been emptied, Sir.");
+          appendAiBubble(res.spoken_summary || "Windows Recycle Bin has been emptied!");
         } catch (e) {
           console.error("Recycle bin error:", e);
         }
@@ -3733,12 +3733,12 @@
       const bubble = document.createElement('div');
       bubble.className = 'flex flex-col items-start gap-1 max-w-[95%]';
       bubble.innerHTML = `
-        <span class="text-[10px] font-mono text-cyan-400 pl-1">J.A.R.V.I.S. Protocol Engine • ${time} • <span class="text-emerald-400 font-bold uppercase">${escapeHtml(res.protocol || 'Protocol')}</span></span>
+        <span class="text-[10px] font-mono text-cyan-400 pl-1">IGIRS Assistant • ${time} • <span class="text-emerald-400 font-bold uppercase">${escapeHtml(res.protocol || 'Protocol')}</span></span>
         <div class="w-full bg-slate-900/95 border border-cyan-500/50 rounded-2xl rounded-tl-sm p-4 text-xs text-slate-200 shadow-2xl flex flex-col gap-2">
           <div class="text-sm font-semibold text-cyan-200 flex items-center gap-1.5">
             <span>⚡</span> Protocol ${escapeHtml((res.protocol || '').toUpperCase())} Engaged
           </div>
-          <div class="text-xs text-slate-300 leading-relaxed">${escapeHtml(res.spoken_summary || 'Action complete, Sir.')}</div>
+          <div class="text-xs text-slate-300 leading-relaxed">${escapeHtml(res.spoken_summary || 'Done!')}</div>
         </div>
       `;
       stream.appendChild(bubble);
