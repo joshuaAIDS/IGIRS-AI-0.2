@@ -42,6 +42,12 @@ data_documents/
 knowledge_store.json
 scratch/test_docs/
 
+# Local Model Weights & Audio Binaries
+models/
+*.onnx
+*.bin
+scratch/*.wav
+
 # Contacts & Email Configurations
 contacts_store.json
 email_config.json

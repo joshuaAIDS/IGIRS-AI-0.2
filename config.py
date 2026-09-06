@@ -57,12 +57,16 @@ FALLBACK_LLM_MODELS = [
 LLM_TEMPERATURE = 0.6
 LLM_MAX_TOKENS = 150
 
-# TTS Configuration (Edge-TTS & Neural Voices)
+# TTS Configuration (Kokoro-82M & Edge-TTS)
 VOICE_ENABLED_DEFAULT = True
-DEFAULT_ENGLISH_VOICE = "en-US-ChristopherNeural"
+TTS_ENGINE = "kokoro"  # Primary engine: "kokoro" (Local human AI) or "edge-tts" (Microsoft Neural)
+KOKORO_MODEL_PATH = BASE_DIR / "models" / "kokoro" / "kokoro-v1.0.onnx"
+KOKORO_VOICES_PATH = BASE_DIR / "models" / "kokoro" / "voices-v1.0.bin"
+DEFAULT_KOKORO_VOICE = "am_adam"  # Popular: "am_adam" (warm male), "af_heart" (expressive female), "am_michael", "af_bella"
+DEFAULT_ENGLISH_VOICE = "en-US-AndrewNeural"
 DEFAULT_TAMIL_VOICE = "ta-IN-PallaviNeural"
-FALLBACK_ENGLISH_VOICE = "en-US-AndrewNeural"
-DEFAULT_TTS_RATE = "+14%"
+FALLBACK_ENGLISH_VOICE = "en-US-BrianNeural"
+DEFAULT_TTS_RATE = "+10%"
 DEFAULT_TTS_VOLUME = 1.0  # Range: 0.0 to 1.0
 
 # User Identity & Defaults

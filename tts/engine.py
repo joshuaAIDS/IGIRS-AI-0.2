@@ -13,13 +13,18 @@ from .synthesizer import TTSSynthesizer
 logger = logging.getLogger("IGIRS.TTSEngine")
 
 POPULAR_VOICES = [
-    {"id": "en-IN-NeerjaNeural", "name": "Neerja (Indian English - Female)", "lang": "English"},
-    {"id": "en-IN-PrabhatNeural", "name": "Prabhat (Indian English - Male)", "lang": "English"},
-    {"id": "en-US-ChristopherNeural", "name": "Christopher (US English - Confident Male JARVIS)", "lang": "English"},
-    {"id": "en-US-AvaNeural", "name": "Ava (US English - Natural Female)", "lang": "English"},
-    {"id": "en-GB-SoniaNeural", "name": "Sonia (British English - Elegant Female)", "lang": "English"},
-    {"id": "ta-IN-PallaviNeural", "name": "Pallavi (Tamil - Female)", "lang": "Tamil"},
-    {"id": "ta-IN-ValluvarNeural", "name": "Valluvar (Tamil - Male)", "lang": "Tamil"}
+    {"id": "am_adam", "name": "Adam (Kokoro-82M - Natural Warm Male)", "lang": "English", "engine": "kokoro"},
+    {"id": "af_heart", "name": "Heart (Kokoro-82M - Expressive Warm Female)", "lang": "English", "engine": "kokoro"},
+    {"id": "am_michael", "name": "Michael (Kokoro-82M - Calm Conversational Male)", "lang": "English", "engine": "kokoro"},
+    {"id": "af_bella", "name": "Bella (Kokoro-82M - Lively Friendly Female)", "lang": "English", "engine": "kokoro"},
+    {"id": "bm_george", "name": "George (Kokoro-82M - British Conversational Male)", "lang": "English", "engine": "kokoro"},
+    {"id": "bf_emma", "name": "Emma (Kokoro-82M - British Friendly Female)", "lang": "English", "engine": "kokoro"},
+    {"id": "en-US-AndrewNeural", "name": "Andrew (Edge-TTS - Casual Male)", "lang": "English", "engine": "edge-tts"},
+    {"id": "en-US-AvaNeural", "name": "Ava (Edge-TTS - Natural Female)", "lang": "English", "engine": "edge-tts"},
+    {"id": "en-IN-PrabhatNeural", "name": "Prabhat (Edge-TTS - Indian English Male)", "lang": "English", "engine": "edge-tts"},
+    {"id": "en-IN-NeerjaNeural", "name": "Neerja (Edge-TTS - Indian English Female)", "lang": "English", "engine": "edge-tts"},
+    {"id": "ta-IN-PallaviNeural", "name": "Pallavi (Tamil - Female)", "lang": "Tamil", "engine": "edge-tts"},
+    {"id": "ta-IN-ValluvarNeural", "name": "Valluvar (Tamil - Male)", "lang": "Tamil", "engine": "edge-tts"}
 ]
 
 class TTSEngine:
@@ -30,7 +35,7 @@ class TTSEngine:
 
         # Voice Settings
         self.enabled: bool = config.VOICE_ENABLED_DEFAULT
-        self.english_voice: str = config.DEFAULT_ENGLISH_VOICE
+        self.english_voice: str = getattr(config, "DEFAULT_KOKORO_VOICE", "am_adam") if getattr(config, "TTS_ENGINE", "kokoro") == "kokoro" else config.DEFAULT_ENGLISH_VOICE
         self.tamil_voice: str = config.DEFAULT_TAMIL_VOICE
         self.rate: str = config.DEFAULT_TTS_RATE
         self.volume: float = config.DEFAULT_TTS_VOLUME
