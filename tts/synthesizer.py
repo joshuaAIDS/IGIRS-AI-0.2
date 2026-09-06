@@ -78,14 +78,14 @@ class TTSSynthesizer:
         if not kokoro:
             return None
 
-        # Parse speed from rate string (e.g. "+10%" -> 1.10)
-        speed = 1.05
+        # Parse speed from rate string (e.g. "-8%" -> 0.92, "+0%" -> 1.0)
+        speed = 0.92
         try:
             clean_rate = rate.replace("%", "").strip()
             pct = float(clean_rate)
             speed = max(0.6, min(1.8, 1.0 + (pct / 100.0)))
         except Exception:
-            speed = 1.05
+            speed = 0.92
 
         target_voice = voice or getattr(config, "DEFAULT_KOKORO_VOICE", "am_adam")
         # Validate voice exists in Kokoro
@@ -100,7 +100,15 @@ class TTSSynthesizer:
         unique_id = uuid.uuid4().hex[:8]
         out_file = self.output_dir / f"speech_kokoro_{unique_id}.wav"
 
-        samples, sr = kokoro.create(text, voice=target_voice, speed=speed, lang="en-us")
+        # sentence_pause and clause_pause provide natural breathing room between thoughts
+        samples, sr = kokoro.create(
+            text,
+            voice=target_voice,
+            speed=speed,
+            lang="en-us",
+            sentence_pause=0.35,
+            clause_pause=0.15
+        )
         sf.write(str(out_file), samples, sr)
 
         if out_file.exists() and out_file.stat().st_size > 0:

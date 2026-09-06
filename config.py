@@ -66,7 +66,7 @@ DEFAULT_KOKORO_VOICE = "am_adam"  # Popular: "am_adam" (warm male), "af_heart" (
 DEFAULT_ENGLISH_VOICE = "en-US-AndrewNeural"
 DEFAULT_TAMIL_VOICE = "ta-IN-PallaviNeural"
 FALLBACK_ENGLISH_VOICE = "en-US-BrianNeural"
-DEFAULT_TTS_RATE = "+10%"
+DEFAULT_TTS_RATE = "-8%"  # Relaxed, clear, and natural human conversational pace
 DEFAULT_TTS_VOLUME = 1.0  # Range: 0.0 to 1.0
 
 # User Identity & Defaults
