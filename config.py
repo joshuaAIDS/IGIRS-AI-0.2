@@ -46,16 +46,23 @@ if not NVIDIA_API_KEYS:
         "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"
     ]
 
-# LLM Configuration (NVIDIA NIM Active Models)
+# LLM Providers Configuration
+# Groq: Ultra-fast LPU inference with 120B parameter model
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_PRIMARY_MODEL = "openai/gpt-oss-120b"  # 120B flagship model, near-instant speed & deep reasoning
+GROQ_FALLBACK_MODEL = "groq/compound"
+
+# NVIDIA NIM: Vision & Secondary Fallback
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 PRIMARY_LLM_MODEL = "meta/llama-3.2-11b-vision-instruct"
 FALLBACK_LLM_MODELS = [
-    "nvidia/nemotron-3-ultra-550b-a55b",
-    "deepseek-ai/deepseek-v4-pro-0813"
+    "meta/llama-3.2-11b-vision-instruct"
 ]
 
-LLM_TEMPERATURE = 0.6
-LLM_MAX_TOKENS = 150
+# Provider Selection: "auto" (Groq 120B first, NVIDIA NIM fallback), "groq", or "nvidia"
+LLM_PROVIDER = "auto"
+LLM_TEMPERATURE = 0.7
+LLM_MAX_TOKENS = 1024  # Expanded from 150 to allow comprehensive, high-quality answers!
 
 # TTS Configuration (Kokoro-82M & Edge-TTS)
 VOICE_ENABLED_DEFAULT = True

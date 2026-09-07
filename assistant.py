@@ -391,7 +391,8 @@ class IGIRSAssistant:
 
             self.memory.add_assistant_message(final_content)
             if speak_response:
-                self.tts.speak(final_content)
+                spoken = self.get_spoken_summary(final_content)
+                self.tts.speak(spoken)
             return final_content
 
         else:
@@ -418,8 +419,31 @@ class IGIRSAssistant:
             # Direct text response
             self.memory.add_assistant_message(content)
             if speak_response:
-                self.tts.speak(content)
+                spoken = self.get_spoken_summary(content)
+                self.tts.speak(spoken)
             return content
+
+    def get_spoken_summary(self, text: str) -> str:
+        """
+        Extracts a clean, natural conversational spoken summary for voice playback.
+        Ensures the UI displays the complete, rich response while voice output stays brisk and engaging.
+        """
+        if not text:
+            return ""
+        import re
+        clean = re.sub(r"```[\s\S]*?```", " [code displayed on screen] ", text)
+        clean = re.sub(r"\|[^\n]+\|", "", clean)
+        clean = re.sub(r"[#*`_~]", "", clean).strip()
+
+        paragraphs = [p.strip() for p in clean.split("\n\n") if p.strip()]
+        if not paragraphs:
+            paragraphs = [p.strip() for p in clean.split("\n") if p.strip()]
+
+        first = paragraphs[0] if paragraphs else clean
+        if len(first) > 300:
+            sentences = re.split(r'(?<=[.!?])\s+', first)
+            first = " ".join(sentences[:2]) if len(sentences) > 1 else first[:300]
+        return first.strip()
 
     def listen_and_respond(
         self,

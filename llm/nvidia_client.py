@@ -40,8 +40,51 @@ class NvidiaLLMClient:
         model: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Executes a chat completion with automatic key rotation and model fallback.
+        Executes a chat completion with automatic Groq / NVIDIA NIM routing and key rotation.
         """
+        provider = getattr(config, "LLM_PROVIDER", "auto").lower()
+        groq_key = getattr(config, "GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")
+
+        # Check if messages contain multimodal / vision content
+        has_vision = any(
+            isinstance(m.get("content"), list) and any(
+                isinstance(c, dict) and c.get("type") in ["image_url", "image"] for c in m.get("content")
+            ) for m in messages if isinstance(m, dict)
+        )
+
+        # 1. Primary Engine: Groq Ultra-Fast (Qwen-27B / GPT-120B)
+        if provider in ["auto", "groq"] and groq_key and not has_vision:
+            try:
+                import groq
+                client = groq.Groq(api_key=groq_key)
+                target_model = model or getattr(config, "GROQ_PRIMARY_MODEL", "qwen/qwen3.8-27b")
+                
+                groq_payload = {
+                    "model": target_model,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                }
+                if tools:
+                    groq_payload["tools"] = tools
+                    groq_payload["tool_choice"] = tool_choice
+
+                resp = client.chat.completions.create(**groq_payload)
+                data = resp.model_dump()
+                # Clean up thinking tags if any
+                for choice in data.get("choices", []):
+                    msg = choice.get("message", {})
+                    content = msg.get("content")
+                    if content and "<think>" in content and "</think>" in content:
+                        import re
+                        msg["content"] = re.sub(r"<think>[\s\S]*?</think>", "", content).strip()
+                return data
+            except Exception as groq_err:
+                logger.warning(f"Groq completion failed ({groq_err}), falling back to NVIDIA NIM...")
+                if provider == "groq":
+                    raise
+
+        # 2. Secondary Engine: NVIDIA NIM with Key Rotation
         models_to_try = [model or self.primary_model] + [m for m in self.fallback_models if m != (model or self.primary_model)]
         
         last_error = None
@@ -101,8 +144,39 @@ class NvidiaLLMClient:
         model: Optional[str] = None
     ) -> Generator[str, None, None]:
         """
-        Streams response chunks from NVIDIA NIM API.
+        Streams response chunks from Groq or NVIDIA NIM API.
         """
+        provider = getattr(config, "LLM_PROVIDER", "auto").lower()
+        groq_key = getattr(config, "GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")
+
+        has_vision = any(
+            isinstance(m.get("content"), list) and any(
+                isinstance(c, dict) and c.get("type") in ["image_url", "image"] for c in m.get("content")
+            ) for m in messages if isinstance(m, dict)
+        )
+
+        if provider in ["auto", "groq"] and groq_key and not has_vision:
+            try:
+                import groq
+                client = groq.Groq(api_key=groq_key)
+                target_model = model or getattr(config, "GROQ_PRIMARY_MODEL", "qwen/qwen3.8-27b")
+                stream = client.chat.completions.create(
+                    model=target_model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=True
+                )
+                for chunk in stream:
+                    delta = chunk.choices[0].delta if chunk.choices else None
+                    if delta and delta.content:
+                        yield delta.content
+                return
+            except Exception as groq_err:
+                logger.warning(f"Groq stream failed ({groq_err}), falling back to NVIDIA NIM...")
+                if provider == "groq":
+                    raise
+
         models_to_try = [model or self.primary_model] + [m for m in self.fallback_models if m != (model or self.primary_model)]
 
         for attempt_model in models_to_try:
