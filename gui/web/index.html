@@ -2228,7 +2228,7 @@
         // Standalone preview fallback
         setTimeout(() => {
           setVoiceState('speaking');
-          appendAiBubble(`I have received your command: "${text}". WebGL & NVIDIA NIM ready.`);
+          appendAiBubble(`I have received your command: "${text}". WebGL & Groq LPU ready.`);
           setTimeout(() => setVoiceState('standby'), 3000);
         }, 1200);
       }
@@ -2245,7 +2245,7 @@
       scanBadge.className = 'max-w-[90%] bg-indigo-950/80 border border-indigo-500/40 rounded-xl p-3 flex items-center gap-2.5 text-xs text-indigo-300 shadow-lg';
       scanBadge.innerHTML = `
         <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping"></span>
-        <span class="font-mono">🔍 Capturing ${focusWindow ? 'active window' : 'live screen'} & analyzing with NVIDIA Multimodal Vision...</span>
+        <span class="font-mono">🔍 Capturing ${focusWindow ? 'active window' : 'live screen'} & analyzing visual feed...</span>
       `;
       stream.appendChild(scanBadge);
       stream.scrollTop = stream.scrollHeight;
@@ -2342,7 +2342,7 @@
         scanBadge.className = 'max-w-[90%] bg-indigo-950/80 border border-indigo-500/40 rounded-xl p-3 flex items-center gap-2.5 text-xs text-indigo-300 shadow-lg';
         scanBadge.innerHTML = `
           <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping"></span>
-          <span class="font-mono">🔍 Uploading & analyzing image with NVIDIA Multimodal Vision...</span>
+          <span class="font-mono">🔍 Uploading & analyzing image visual feed...</span>
         `;
         stream.appendChild(scanBadge);
         stream.scrollTop = stream.scrollHeight;
@@ -2424,7 +2424,7 @@
             <button onclick="insertPrompt('Regarding this screen: ')" class="px-2.5 py-1 rounded bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-300 transition-colors flex items-center gap-1">
               <span>💬</span> Follow-up
             </button>
-            <span class="ml-auto font-mono text-indigo-400">Llama-3.2-11B-Vision</span>
+            <span class="ml-auto font-mono text-indigo-400">Groq Vision Engine</span>
           </div>
         </div>
       `;

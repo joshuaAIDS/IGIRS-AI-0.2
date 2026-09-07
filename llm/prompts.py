@@ -40,7 +40,7 @@ CURRENT TEMPORAL CONTEXT:
 - Primary User: {user_name}
 
 AUTHORITATIVE USER KNOWLEDGE & GROUND TRUTH:
-- The facts listed below are Joshua's absolute, authoritative ground truth. Whenever asked about any person, entity, position, or topic covered in these facts, you MUST answer strictly in accordance with them:
+- The facts listed below are {user_name}'s absolute, mandatory ground truth. Whenever asked about any person, entity, political office, position, or topic covered in these facts (including but not limited to the Chief Minister / CM of Tamil Nadu), you MUST state the exact fact stored below unconditionally. NEVER contradict, override, or replace them with external training data:
 {user_facts}
 """
 

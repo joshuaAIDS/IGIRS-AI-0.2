@@ -18,7 +18,7 @@ if sys.platform == "win32":
         pass
 
 import config
-from llm.nvidia_client import NvidiaLLMClient
+from llm.groq_client import GroqLLMClient
 from llm.prompts import build_system_prompt
 from memory.manager import MemoryManager
 from tools.registry import ToolRegistry
@@ -31,7 +31,7 @@ logger = logging.getLogger("IGIRS.Assistant")
 class IGIRSAssistant:
     def __init__(self):
         self.memory = MemoryManager()
-        self.llm = NvidiaLLMClient()
+        self.llm = GroqLLMClient()
         self.tts = TTSEngine(memory_manager=self.memory)
         self.tools = ToolRegistry(memory_manager=self.memory, llm_client=self.llm, tts_engine=self.tts)
         self.stt = VoiceListener()
@@ -124,7 +124,9 @@ class IGIRSAssistant:
             selected_tool_names.add("remember_user_fact")
 
         # 9. Web Search (Explicit search commands)
-        if re.search(r"\b(search for|search the web|search web|google|look up|who is|latest news on)\b", text):
+        if re.search(r"\b(search for|search the web|search web|google|latest news on)\b", text) or (
+            re.search(r"\b(look up|find out)\b", text) and any(w in text for w in ["online", "web", "internet"])
+        ):
             selected_tool_names.add("web_search")
 
         # --- Phase 1: Hardware & System Controls ---

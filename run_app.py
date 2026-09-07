@@ -1,6 +1,6 @@
 """
 IGIRS AI — One-Click Desktop Application Launcher.
-Starts the 3D Cyber Command Center HUD with speech-to-speech, tools, and NVIDIA NIM.
+Starts the 3D Cyber Command Center HUD with speech-to-speech, tools, and Groq LPU.
 """
 import sys
 import os

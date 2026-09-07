@@ -40,7 +40,7 @@ def print_banner(assistant: IGIRSAssistant):
 ║                      ⚡ IGIRS AI ASSISTANT ⚡                      ║
 ║            Intelligent Guardian & Interactive Realtime System      ║
 ╚════════════════════════════════════════════════════════════════════╝{C_RESET}
-{C_DIM}• Core Brain:{C_RESET}     {C_CYAN}{config.PRIMARY_LLM_MODEL}{C_RESET}
+{C_DIM}• Core Brain:{C_RESET}     {C_CYAN}{config.PRIMARY_LLM_MODEL} (Groq Ultra-Fast LPU){C_RESET}
 {C_DIM}• Mode:{C_RESET}           {C_GREEN}Speech-to-Speech (STT + LLM + TTS Active){C_RESET}
 {C_DIM}• Voice Output:{C_RESET}   {voice_status} {C_DIM}| Eng: {C_PURPLE}{tts.english_voice}{C_DIM} | Vol: {C_YELLOW}{vol_pct}%{C_DIM} | Rate: {C_CYAN}{tts.rate}{C_RESET}
 {C_DIM}• Tamil Voice:{C_RESET}    {C_PURPLE}{tts.tamil_voice}{C_RESET}
@@ -651,7 +651,7 @@ def main():
 
     assistant.tts.set_on_barge_in(global_barge_in)
 
-    print(f"{C_GREEN}✔ Online & Connected to NVIDIA NIM API.{C_RESET}")
+    print(f"{C_GREEN}✔ Online & Connected to Groq Ultra-Fast LPU Engine (10-Key Auto-Rotation).{C_RESET}")
     print(f"{C_DIM}Welcome back, {assistant.memory.user_name}. Ready for voice or text commands.{C_RESET}\n")
 
     while True:
