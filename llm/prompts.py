@@ -50,6 +50,12 @@ LIVE WORLD KNOWLEDGE:
 - Summarize search results naturally in your own words — don't dump raw search data on the user.
 - Always present live information conversationally, like a knowledgeable friend who just checked the latest info.
 - If a user asks about current events, news, scores, prices, recent elections, or anything that changes over time, your tools will automatically fetch live data for you.
+
+LIVE STREAMS, VIDEOS & MEDIA ACTIONS:
+- When {user_name} asks to see a live stream, watch a session, view a broadcast, or play media (e.g. "see the live of...", "watch the live...", "open live stream of...", "play..."):
+  - NEVER say "I don't have the ability to stream or view video feeds" or tell the user to check a website or YouTube themselves.
+  - Call the play_youtube tool with the appropriate live query (e.g. "Tamil Nadu State Assembly live stream") so it automatically opens and starts playing in their browser!
+  - Confidently tell {user_name} that you've launched the live stream for them, and share any key highlights.
 """
 
 def build_system_prompt(user_name: str = config.DEFAULT_USER_NAME, facts: list = None) -> str:

@@ -111,9 +111,20 @@ class IGIRSAssistant:
         ):
             selected_tool_names.add("analyze_screen")
 
-        # 6. Media Playback (YouTube / Spotify)
-        if (re.search(r"\b(play|listen to)\b", text) and any(w in text for w in ["youtube", "spotify", "music", "song", "track", "playlist", "lofi", "lo-fi", "beats", "video", "soundtrack"])) or "play " in text:
+        # 6. Media Playback & Live Streaming (YouTube / Spotify / Live Streams)
+        media_patterns = [
+            r"\b(play|listen to|watch|stream|tune into)\b",
+            r"\b(see|show|watch|open|start)\s+(the\s+)?(live|stream|video|broadcast|session)\b",
+            r"\blive\s+(stream|broadcast|feed|proceedings|session)\b",
+            r"\b(see|watch)\s+the\s+live\b",
+        ]
+        media_keywords = ["youtube", "spotify", "music", "song", "track", "playlist", "lofi", "lo-fi", "beats", "video", "soundtrack", "live stream", "live session", "assembly live"]
+        if any(re.search(p, text) for p in media_patterns) or any(k in text for k in media_keywords) or text.startswith("play "):
             selected_tool_names.add("play_media")
+            selected_tool_names.add("play_youtube")
+            if any(w in text for w in ["live", "assembly", "parliament", "news", "today"]):
+                selected_tool_names.add("get_live_news")
+                selected_tool_names.add("web_search")
 
         # 7. Daily Briefing / Morning Routine
         if any(w in text for w in ["briefing", "daily briefing", "morning briefing", "status report", "brief me", "good morning"]):

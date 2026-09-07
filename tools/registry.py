@@ -479,13 +479,13 @@ class ToolRegistry:
         # 22. Media: YouTube Auto-Play & Search
         self.register(
             name="play_youtube",
-            description="Search YouTube and automatically open and play the top video with autoplay. Call when user says 'play ... on YouTube', 'open YouTube video ...', 'watch ... on YouTube'.",
+            description="Search YouTube and automatically open and play the top matching video or live stream in the user's browser with autoplay. Call when user says 'see the live of...', 'watch the live stream...', 'play ... on YouTube', 'open YouTube video ...', 'watch ...', 'open live broadcast'.",
             parameters={
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "The video search query or song to play on YouTube."
+                        "description": "The search query, live stream topic, or video title to play on YouTube (e.g. 'Tamil Nadu State Assembly live stream')."
                     },
                     "autoplay": {
                         "type": "boolean",
