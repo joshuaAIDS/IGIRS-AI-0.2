@@ -123,10 +123,30 @@ class IGIRSAssistant:
         if re.search(r"\b(remember that|my favorite|i live in|my name is)\b", text):
             selected_tool_names.add("remember_user_fact")
 
-        # 9. Web Search (Explicit search commands)
-        if re.search(r"\b(search for|search the web|search web|google|latest news on)\b", text) or (
-            re.search(r"\b(look up|find out)\b", text) and any(w in text for w in ["online", "web", "internet"])
-        ):
+        # 9. Web Search (Explicit search commands + smart auto-detection for current events)
+        if re.search(r"\b(search for|search the web|search web|google|look up online)\b", text):
+            selected_tool_names.add("web_search")
+
+        # 9b. Live News & Current Events (auto-detect when user needs real-time knowledge)
+        news_triggers = [
+            "news", "headlines", "latest", "trending", "current events",
+            "what's happening", "what is happening", "what happened",
+            "breaking news", "today's news", "recent", "update on",
+            "score", "match result", "election result", "stock price",
+            "who won", "did india win"
+        ]
+        if any(w in text for w in news_triggers):
+            selected_tool_names.add("get_live_news")
+            selected_tool_names.add("web_search")
+
+        # 9c. Smart real-world knowledge detection (auto-search for questions about
+        #     current people, events, or facts the LLM's training data might not cover)
+        real_world_patterns = [
+            r"\b(who is the|who is|who won|who became)\b.*\b(president|prime minister|cm|chief minister|ceo|governor|captain|leader)\b",
+            r"\b(current|new|latest|recent)\b.*\b(president|pm|cm|ceo|law|policy|update|version|release)\b",
+            r"\b(ipl|world cup|olympics|cricket|football|tennis)\b.*\b(score|result|winner|match|schedule)\b",
+        ]
+        if any(re.search(p, text) for p in real_world_patterns):
             selected_tool_names.add("web_search")
 
         # --- Phase 1: Hardware & System Controls ---

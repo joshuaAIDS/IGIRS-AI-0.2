@@ -127,7 +127,7 @@ class GroqLLMClient:
                 # 1. Try via official Groq SDK
                 if groq_sdk is not None:
                     try:
-                        client = groq_sdk.Groq(api_key=active_key)
+                        client = groq_sdk.Groq(api_key=active_key, max_retries=0)
                         payload = {
                             "model": attempt_model,
                             "messages": clean_messages,
@@ -250,7 +250,7 @@ class GroqLLMClient:
 
             if groq_sdk is not None:
                 try:
-                    client = groq_sdk.Groq(api_key=active_key)
+                    client = groq_sdk.Groq(api_key=active_key, max_retries=0)
                     stream = client.chat.completions.create(
                         model=target_model,
                         messages=clean_messages,

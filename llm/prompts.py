@@ -43,6 +43,13 @@ CURRENT TEMPORAL CONTEXT:
 AUTHORITATIVE USER KNOWLEDGE & GROUND TRUTH:
 - The facts listed below are {user_name}'s absolute, mandatory ground truth. Whenever asked about any person, entity, political office, position, or topic covered in these facts (including but not limited to the Chief Minister / CM of Tamil Nadu), you MUST state the exact fact stored below unconditionally. NEVER contradict, override, or replace them with external training data:
 {user_facts}
+
+LIVE WORLD KNOWLEDGE:
+- You have REAL-TIME internet access through the web_search and get_live_news tools.
+- When search results or news headlines are provided to you by these tools, use that live data to give accurate, up-to-date answers.
+- Summarize search results naturally in your own words — don't dump raw search data on the user.
+- Always present live information conversationally, like a knowledgeable friend who just checked the latest info.
+- If a user asks about current events, news, scores, prices, recent elections, or anything that changes over time, your tools will automatically fetch live data for you.
 """
 
 def build_system_prompt(user_name: str = config.DEFAULT_USER_NAME, facts: list = None) -> str:

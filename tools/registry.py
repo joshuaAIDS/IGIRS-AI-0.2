@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Dict, Any, List, Callable, Optional
 import urllib.request
 import urllib.parse
+import xml.etree.ElementTree as ET
 import config
 
 logger = logging.getLogger("IGIRS.Tools")
@@ -145,10 +146,10 @@ class ToolRegistry:
             handler=self._tool_time_date
         )
 
-        # 3. Web Search Tool
+        # 3. Web Search Tool (Live Internet Search)
         self.register(
             name="web_search",
-            description="Search the web for current news, facts, weather, technical documentation, or real-time information.",
+            description="Search the live internet for current facts, real-time information, recent events, people, places, technical topics, or anything the user asks about that requires up-to-date knowledge.",
             parameters={
                 "type": "object",
                 "properties": {
@@ -160,6 +161,23 @@ class ToolRegistry:
                 "required": ["query"]
             },
             handler=self._tool_web_search
+        )
+
+        # 3b. Live News Tool (Breaking & Latest News)
+        self.register(
+            name="get_live_news",
+            description="Get the latest breaking news headlines and current affairs from around the world or a specific topic. Use when the user asks about news, headlines, what's happening, current events, or trending topics.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "topic": {
+                        "type": "string",
+                        "description": "Optional topic to filter news (e.g. 'India', 'technology', 'sports'). Leave empty for top global headlines."
+                    }
+                },
+                "required": []
+            },
+            handler=self._tool_get_live_news
         )
 
         # 4. Open Desktop Application
@@ -945,9 +963,49 @@ class ToolRegistry:
         }
 
     def _tool_web_search(self, query: str = "", **kwargs) -> str:
-        """Searches the web via DuckDuckGo HTML / Instant Answers."""
+        """Searches the live internet for real-time information."""
         if not query:
             return "No search query provided."
+
+        # Layer 1: DDGS (duckduckgo_search / ddgs)
+        try:
+            try:
+                from ddgs import DDGS
+            except ImportError:
+                from duckduckgo_search import DDGS
+
+            ddgs = DDGS()
+            results = ddgs.text(query, max_results=5)
+            if results:
+                output_lines = [f"Live web search results for '{query}':\n"]
+                for i, r in enumerate(results, 1):
+                    title = r.get("title", "").strip()
+                    body = r.get("body", "").strip()
+                    url = r.get("href", "")
+                    output_lines.append(f"{i}. {title}")
+                    if body:
+                        output_lines.append(f"   {body[:250]}")
+                    if url:
+                        output_lines.append(f"   Source: {url}")
+                return "\n".join(output_lines)
+        except Exception as e:
+            logger.info(f"DDGS web search notice: {e}")
+
+        # Layer 2: Wikipedia Summary REST API (Fast factual encyclopedia lookup)
+        try:
+            clean_q = query.replace("who is", "").replace("what is", "").replace("search for", "").strip()
+            wiki_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(clean_q)}"
+            req = urllib.request.Request(wiki_url, headers={"User-Agent": "IGIRS-AI/2.0"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                extract = data.get("extract", "")
+                title = data.get("title", "")
+                if extract:
+                    return f"Factual overview for '{title}':\n{extract}"
+        except Exception:
+            pass
+
+        # Layer 3: DuckDuckGo Instant Answer API (Zero-dependency fallback)
         try:
             encoded = urllib.parse.quote_plus(query)
             url = f"https://api.duckduckgo.com/?q={encoded}&format=json&no_html=1&skip_disambig=1"
@@ -960,15 +1018,81 @@ class ToolRegistry:
                 related = data.get("RelatedTopics", [])
                 if related:
                     snippets = []
-                    for item in related[:3]:
+                    for item in related[:5]:
                         if "Text" in item:
                             snippets.append(item["Text"])
                     if snippets:
                         return f"Search results for '{query}':\n" + "\n".join(f"- {s}" for s in snippets)
         except Exception as e:
-            logger.warning(f"DuckDuckGo API search error: {e}")
+            logger.warning(f"DuckDuckGo API fallback error: {e}")
 
-        return f"Search conducted for '{query}'. Information retrieved regarding query topics."
+        return f"Could not retrieve live search results for '{query}' at this moment."
+
+    def _tool_get_live_news(self, topic: str = "", **kwargs) -> str:
+        """Fetches latest real-time breaking news headlines from verified news agencies."""
+        search_topic = topic.strip() if topic else ""
+
+        # Layer 1: Google News RSS (100% live, zero ratelimit blocks, top verified news sources)
+        try:
+            if search_topic and search_topic.lower() not in ["world", "all", "top", "global", "today", "latest", ""]:
+                rss_url = f"https://news.google.com/rss/search?q={urllib.parse.quote_plus(search_topic)}&hl=en-IN&gl=IN&ceid=IN:en"
+            else:
+                rss_url = "https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en"
+
+            req = urllib.request.Request(rss_url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            })
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                tree = ET.fromstring(resp.read())
+                items = tree.findall(".//item")
+                if items:
+                    topic_label = search_topic if search_topic else "Top World & India"
+                    output_lines = [f"Latest breaking news headlines ({topic_label}):\n"]
+                    for i, item in enumerate(items[:6], 1):
+                        title_el = item.find("title")
+                        source_el = item.find("source")
+                        pub_date_el = item.find("pubDate")
+                        title = title_el.text if title_el is not None else ""
+                        source = source_el.text if source_el is not None else ""
+                        pub_date = pub_date_el.text if pub_date_el is not None else ""
+                        if title:
+                            output_lines.append(f"{i}. {title}")
+                            if source or pub_date:
+                                date_str = pub_date[:16] if pub_date else ""
+                                src_str = f"Source: {source}" if source else ""
+                                meta = " | ".join(filter(None, [src_str, date_str]))
+                                if meta:
+                                    output_lines.append(f"   ({meta})")
+                    return "\n".join(output_lines)
+        except Exception as e:
+            logger.warning(f"Google News RSS error: {e}")
+
+        # Layer 2: DDGS News (Fallback)
+        try:
+            try:
+                from ddgs import DDGS
+            except ImportError:
+                from duckduckgo_search import DDGS
+
+            ddgs = DDGS()
+            news = ddgs.news(search_topic or "world", max_results=5)
+            if news:
+                output_lines = [f"Latest news headlines for '{search_topic or 'world'}':\n"]
+                for i, n in enumerate(news, 1):
+                    title = n.get("title", "").strip()
+                    body = n.get("body", "").strip()
+                    source = n.get("source", "")
+                    output_lines.append(f"{i}. {title}")
+                    if body:
+                        output_lines.append(f"   {body[:200]}")
+                    if source:
+                        output_lines.append(f"   Source: {source}")
+                return "\n".join(output_lines)
+        except Exception as e:
+            logger.warning(f"DDGS news fallback error: {e}")
+
+        # Layer 3: Web search fallback
+        return self._tool_web_search(query=f"latest news {search_topic} today".strip())
 
     def _tool_open_application(self, app_name: str = "", **kwargs) -> str:
         """Launches a desktop app on Windows."""
