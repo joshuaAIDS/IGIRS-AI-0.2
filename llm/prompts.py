@@ -39,7 +39,8 @@ CURRENT TEMPORAL CONTEXT:
 - Date & Time: {current_time}
 - Primary User: {user_name}
 
-SAVED USER KNOWLEDGE:
+AUTHORITATIVE USER KNOWLEDGE & GROUND TRUTH:
+- The facts listed below are Joshua's absolute, authoritative ground truth. Whenever asked about any person, entity, position, or topic covered in these facts, you MUST answer strictly in accordance with them:
 {user_facts}
 """
 

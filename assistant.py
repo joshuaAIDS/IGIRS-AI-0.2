@@ -257,6 +257,10 @@ class IGIRSAssistant:
         if any(w in text for w in ["empty recycle bin", "clean recycle bin", "clear recycle bin", "purge recycle bin", "empty trash", "clean trash"]):
             selected_tool_names.add("empty_recycle_bin")
 
+        # 27. Memory & Learning Facts
+        if any(w in text for w in ["remember that", "remember this", "keep in mind", "learn that", "note that", "save fact", "store fact", "record fact", "correct answer is"]):
+            selected_tool_names.add("remember_fact")
+
         if not selected_tool_names:
             return None
 
