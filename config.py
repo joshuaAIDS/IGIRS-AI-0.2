@@ -21,7 +21,9 @@ DEFAULT_CURRENCY = "INR"
 DEFAULT_CURRENCY_SYMBOL = "₹"
 BROWSER_HEADLESS = True
 DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+# API Keys Files
 API_KEYS_FILE = BASE_DIR / "IGIRS AI (API KEYS).txt"
+GROQ_KEYS_FILE = BASE_DIR / "GROQ API KEYS.txt"
 
 # Load NVIDIA API Keys (Multi-key support with auto-rotation)
 NVIDIA_API_KEYS = []
@@ -46,10 +48,24 @@ if not NVIDIA_API_KEYS:
         "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"
     ]
 
+# Load Groq API Keys (10-Key Auto-Rotation Pool)
+GROQ_API_KEYS = []
+
+if GROQ_KEYS_FILE.exists():
+    with open(GROQ_KEYS_FILE, "r", encoding="utf-8") as f:
+        for line in f:
+            clean_key = line.strip()
+            if clean_key and not clean_key.startswith("#"):
+                GROQ_API_KEYS.append(clean_key)
+
+env_groq = os.environ.get("GROQ_API_KEY")
+if env_groq and env_groq not in GROQ_API_KEYS:
+    GROQ_API_KEYS.append(env_groq)
+
 # LLM Providers Configuration
-# Groq: Ultra-fast LPU inference with 120B parameter model
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
-GROQ_PRIMARY_MODEL = "openai/gpt-oss-120b"  # 120B flagship model, near-instant speed & deep reasoning
+# Groq: Ultra-fast LPU inference (Qwen-27B default, GPT-120B reasoning)
+GROQ_PRIMARY_MODEL = "qwen/qwen3.8-27b"  # 27B ultra-smart conversational & tool model
+GROQ_REASONING_MODEL = "openai/gpt-oss-120b"  # 120B deep reasoning model
 GROQ_FALLBACK_MODEL = "groq/compound"
 
 # NVIDIA NIM: Vision & Secondary Fallback

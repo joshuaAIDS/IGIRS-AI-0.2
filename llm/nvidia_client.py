@@ -11,10 +11,17 @@ import config
 logger = logging.getLogger("IGIRS.LLM")
 
 class NvidiaLLMClient:
-    def __init__(self, api_keys: Optional[List[str]] = None, base_url: str = config.NVIDIA_BASE_URL):
+    def __init__(
+        self,
+        api_keys: Optional[List[str]] = None,
+        groq_api_keys: Optional[List[str]] = None,
+        base_url: str = config.NVIDIA_BASE_URL
+    ):
         self.api_keys = api_keys or config.NVIDIA_API_KEYS
+        self.groq_api_keys = groq_api_keys or list(getattr(config, "GROQ_API_KEYS", []))
         self.base_url = base_url.rstrip("/")
         self.current_key_index = 0
+        self.current_groq_key_index = 0
         self.primary_model = config.PRIMARY_LLM_MODEL
         self.fallback_models = config.FALLBACK_LLM_MODELS
 
@@ -25,10 +32,27 @@ class NvidiaLLMClient:
         return self.api_keys[self.current_key_index % len(self.api_keys)]
 
     def rotate_key(self):
-        """Rotate to next available API key."""
+        """Rotate to next available NVIDIA API key."""
         prev = self.current_key_index
         self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
         logger.warning(f"Rotating NVIDIA API key index from {prev} to {self.current_key_index}")
+
+    @property
+    def current_groq_api_key(self) -> Optional[str]:
+        if not self.groq_api_keys:
+            return None
+        return self.groq_api_keys[self.current_groq_key_index % len(self.groq_api_keys)]
+
+    def rotate_groq_key(self):
+        """Rotate to next available Groq API key when hitting rate limits."""
+        if not self.groq_api_keys:
+            return
+        prev = self.current_groq_key_index
+        self.current_groq_key_index = (self.current_groq_key_index + 1) % len(self.groq_api_keys)
+        logger.warning(
+            f"⚡ Groq Rate Limit / Error: Rotating Groq API key from #{prev + 1} to #{self.current_groq_key_index + 1} "
+            f"(Total pool: {len(self.groq_api_keys)} keys)"
+        )
 
     def chat_completion(
         self,
@@ -40,10 +64,10 @@ class NvidiaLLMClient:
         model: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Executes a chat completion with automatic Groq / NVIDIA NIM routing and key rotation.
+        Executes a chat completion with automatic 10-key Groq pool rotation,
+        error failover, and secondary fallback to NVIDIA NIM.
         """
         provider = getattr(config, "LLM_PROVIDER", "auto").lower()
-        groq_key = getattr(config, "GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")
 
         # Check if messages contain multimodal / vision content
         has_vision = any(
@@ -52,37 +76,48 @@ class NvidiaLLMClient:
             ) for m in messages if isinstance(m, dict)
         )
 
-        # 1. Primary Engine: Groq Ultra-Fast (Qwen-27B / GPT-120B)
-        if provider in ["auto", "groq"] and groq_key and not has_vision:
-            try:
-                import groq
-                client = groq.Groq(api_key=groq_key)
-                target_model = model or getattr(config, "GROQ_PRIMARY_MODEL", "qwen/qwen3.8-27b")
-                
-                groq_payload = {
-                    "model": target_model,
-                    "messages": messages,
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                }
-                if tools:
-                    groq_payload["tools"] = tools
-                    groq_payload["tool_choice"] = tool_choice
+        # 1. Primary Engine: Groq Ultra-Fast (Iterates through all keys in rotation pool)
+        if provider in ["auto", "groq"] and self.groq_api_keys and not has_vision:
+            import groq
+            target_model = model or getattr(config, "GROQ_PRIMARY_MODEL", "qwen/qwen3.8-27b")
+            groq_pool_size = len(self.groq_api_keys)
 
-                resp = client.chat.completions.create(**groq_payload)
-                data = resp.model_dump()
-                # Clean up thinking tags if any
-                for choice in data.get("choices", []):
-                    msg = choice.get("message", {})
-                    content = msg.get("content")
-                    if content and "<think>" in content and "</think>" in content:
-                        import re
-                        msg["content"] = re.sub(r"<think>[\s\S]*?</think>", "", content).strip()
-                return data
-            except Exception as groq_err:
-                logger.warning(f"Groq completion failed ({groq_err}), falling back to NVIDIA NIM...")
-                if provider == "groq":
-                    raise
+            for attempt in range(groq_pool_size):
+                active_key = self.current_groq_api_key
+                try:
+                    client = groq.Groq(api_key=active_key)
+                    groq_payload = {
+                        "model": target_model,
+                        "messages": messages,
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                    }
+                    if tools:
+                        groq_payload["tools"] = tools
+                        groq_payload["tool_choice"] = tool_choice
+
+                    resp = client.chat.completions.create(**groq_payload)
+                    data = resp.model_dump()
+                    # Clean up thinking tags if any
+                    for choice in data.get("choices", []):
+                        msg = choice.get("message", {})
+                        content = msg.get("content")
+                        if content and "<think>" in content and "</think>" in content:
+                            import re
+                            msg["content"] = re.sub(r"<think>[\s\S]*?</think>", "", content).strip()
+                    return data
+                except Exception as groq_err:
+                    err_str = str(groq_err)
+                    logger.warning(
+                        f"Groq error on key #{self.current_groq_key_index + 1}/{groq_pool_size} ({err_str[:120]}...). "
+                        f"Auto-switching to next Groq key..."
+                    )
+                    self.rotate_groq_key()
+                    continue
+
+            logger.error("All Groq API keys in pool were exhausted. Falling back to NVIDIA NIM...")
+            if provider == "groq":
+                raise RuntimeError("All Groq API keys in rotation pool exhausted.")
 
         # 2. Secondary Engine: NVIDIA NIM with Key Rotation
         models_to_try = [model or self.primary_model] + [m for m in self.fallback_models if m != (model or self.primary_model)]
@@ -155,27 +190,36 @@ class NvidiaLLMClient:
             ) for m in messages if isinstance(m, dict)
         )
 
-        if provider in ["auto", "groq"] and groq_key and not has_vision:
-            try:
-                import groq
-                client = groq.Groq(api_key=groq_key)
-                target_model = model or getattr(config, "GROQ_PRIMARY_MODEL", "qwen/qwen3.8-27b")
-                stream = client.chat.completions.create(
-                    model=target_model,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    stream=True
-                )
-                for chunk in stream:
-                    delta = chunk.choices[0].delta if chunk.choices else None
-                    if delta and delta.content:
-                        yield delta.content
-                return
-            except Exception as groq_err:
-                logger.warning(f"Groq stream failed ({groq_err}), falling back to NVIDIA NIM...")
-                if provider == "groq":
-                    raise
+        # 1. Primary Streaming Engine: Groq Ultra-Fast (Multi-Key Pool)
+        if provider in ["auto", "groq"] and self.groq_api_keys and not has_vision:
+            import groq
+            target_model = model or getattr(config, "GROQ_PRIMARY_MODEL", "qwen/qwen3.8-27b")
+            groq_pool_size = len(self.groq_api_keys)
+
+            for attempt in range(groq_pool_size):
+                active_key = self.current_groq_api_key
+                try:
+                    client = groq.Groq(api_key=active_key)
+                    stream = client.chat.completions.create(
+                        model=target_model,
+                        messages=messages,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        stream=True
+                    )
+                    for chunk in stream:
+                        delta = chunk.choices[0].delta if chunk.choices else None
+                        if delta and delta.content:
+                            yield delta.content
+                    return
+                except Exception as groq_err:
+                    logger.warning(f"Groq stream error on key #{self.current_groq_key_index + 1}/{groq_pool_size}: {groq_err}. Auto-switching...")
+                    self.rotate_groq_key()
+                    continue
+
+            logger.warning("All Groq keys in pool failed during stream, falling back to NVIDIA NIM...")
+            if provider == "groq":
+                raise RuntimeError("All Groq API keys in rotation pool exhausted during stream.")
 
         models_to_try = [model or self.primary_model] + [m for m in self.fallback_models if m != (model or self.primary_model)]
 
