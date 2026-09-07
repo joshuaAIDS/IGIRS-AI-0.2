@@ -1,17 +1,5 @@
 [
   {
-    "role": "user",
-    "content": "can you open Instagram"
-  },
-  {
-    "role": "assistant",
-    "content": "Playing Instagram for you right now, Joshua!"
-  },
-  {
-    "role": "user",
-    "content": "open Google and search history"
-  },
-  {
     "role": "assistant",
     "content": "",
     "tool_calls": [
@@ -118,5 +106,17 @@
   {
     "role": "assistant",
     "content": "Here are three practical ways you can save electricity at home, Joshua:\n\n1. **Switch to LED bulbs and unplug idle devices.** LED bulbs use up to 90% less energy than traditional incandescent bulbs. Additionally, many electronics like TVs, computers, and gaming consoles draw power even when turned off (known as \"vampire power\"). Using power strips makes it easy to cut power to multiple devices with one switch when they aren't in use.\n\n2. **Optimize your thermostat settings.** Heating and cooling usually account for the bulk of your energy bill. Setting your thermostat a few degrees warmer in the summer and cooler in the winter can make a huge difference. In summer, set it to 78°F (25.5°C) when you're home, and in winter, keep it around 68°F (20°C). You can also use a smart thermostat to automatically adjust the temperature when you're away.\n\n3. **Wash clothes in cold water and air dry.** Heating water accounts for about 90% of the energy used by a washing machine. Switching to cold water for most laundry saves a significant amount of electricity. Pair that with line-drying your clothes instead of using the dryer, and you'll save even more energy while extending the life of your clothes."
+  },
+  {
+    "role": "user",
+    "content": "hi"
+  },
+  {
+    "role": "user",
+    "content": "hi"
+  },
+  {
+    "role": "assistant",
+    "content": "Hey Joshua! What's on your mind?"
   }
 ]

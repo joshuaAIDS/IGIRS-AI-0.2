@@ -78,9 +78,15 @@ class NvidiaLLMClient:
 
         # 1. Primary Engine: Groq Ultra-Fast (Iterates through all keys in rotation pool)
         if provider in ["auto", "groq"] and self.groq_api_keys and not has_vision:
-            import groq
-            target_model = model or getattr(config, "GROQ_PRIMARY_MODEL", "qwen/qwen3.8-27b")
-            groq_pool_size = len(self.groq_api_keys)
+            try:
+                import groq
+            except ImportError:
+                logger.warning("Groq package not installed in this environment, falling back to NVIDIA NIM...")
+                groq = None
+
+            if groq is not None:
+                target_model = model or getattr(config, "GROQ_PRIMARY_MODEL", "qwen/qwen3.8-27b")
+                groq_pool_size = len(self.groq_api_keys)
 
             for attempt in range(groq_pool_size):
                 active_key = self.current_groq_api_key
@@ -192,9 +198,15 @@ class NvidiaLLMClient:
 
         # 1. Primary Streaming Engine: Groq Ultra-Fast (Multi-Key Pool)
         if provider in ["auto", "groq"] and self.groq_api_keys and not has_vision:
-            import groq
-            target_model = model or getattr(config, "GROQ_PRIMARY_MODEL", "qwen/qwen3.8-27b")
-            groq_pool_size = len(self.groq_api_keys)
+            try:
+                import groq
+            except ImportError:
+                logger.warning("Groq package not installed in this environment, falling back to NVIDIA NIM...")
+                groq = None
+
+            if groq is not None:
+                target_model = model or getattr(config, "GROQ_PRIMARY_MODEL", "qwen/qwen3.8-27b")
+                groq_pool_size = len(self.groq_api_keys)
 
             for attempt in range(groq_pool_size):
                 active_key = self.current_groq_api_key
