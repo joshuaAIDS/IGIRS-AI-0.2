@@ -4,10 +4,12 @@ Provides OpenAI/NVIDIA NIM function calling schemas and execution handlers.
 """
 import os
 import json
+import base64
 import logging
 import platform
 import subprocess
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Any, List, Callable, Optional
 import urllib.request
 import urllib.parse
@@ -250,8 +252,33 @@ class ToolRegistry:
                     "focus_window": {
                         "type": "boolean",
                         "description": "If true, crops specifically to the active foreground window instead of the entire desktop."
+                    },
+                    "image_path": {
+                        "type": "string",
+                        "description": "Optional file path or filename of an existing screenshot to inspect."
                     }
                 }
+            },
+            handler=self._tool_analyze_screen
+        )
+
+        # 7b. Screenshot Analyzer Alias
+        self.register(
+            name="analyze_screenshot",
+            description="Inspect and analyze an existing screenshot image file saved on disk using multimodal vision.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "image_path": {
+                        "type": "string",
+                        "description": "File path or filename of the screenshot to analyze (e.g. from Pictures/Screenshots)."
+                    },
+                    "question": {
+                        "type": "string",
+                        "description": "Specific question or analysis request for the screenshot image."
+                    }
+                },
+                "required": ["image_path"]
             },
             handler=self._tool_analyze_screen
         )
@@ -1182,9 +1209,22 @@ class ToolRegistry:
             if not b64 and image_path:
                 try:
                     p = Path(image_path)
-                    if p.exists():
+                    if not p.is_file():
+                        # Search common screenshot folders
+                        candidates = [
+                            config.SCREENSHOTS_DIR / p.name,
+                            Path(r"C:\Users\joshu\OneDrive\Scans\Pictures\Screenshots") / p.name,
+                            Path.home() / "Pictures" / "Screenshots" / p.name,
+                            Path.cwd() / p.name
+                        ]
+                        for cand in candidates:
+                            if cand.is_file():
+                                p = cand
+                                break
+                    if p.is_file():
                         with open(p, "rb") as f:
                             b64 = base64.b64encode(f.read()).decode("utf-8")
+                        logger.info(f"Loaded screenshot image from disk: {p}")
                 except Exception as ex:
                     logger.debug(f"Could not load image_path {image_path}: {ex}")
 

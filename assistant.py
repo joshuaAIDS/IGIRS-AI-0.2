@@ -135,7 +135,8 @@ class IGIRSAssistant:
             selected_tool_names.add("remember_user_fact")
 
         # 9. Web Search (Explicit search commands + smart auto-detection for current events)
-        if re.search(r"\b(search for|search the web|search web|google|look up online)\b", text):
+        # Use negative lookahead to avoid triggering on "search for file(s)" which is a local OS search
+        if re.search(r"\b(search for(?!\s+(any\s+)?(file|files|folder|folders))|search the web|search web|google|look up online)\b", text):
             selected_tool_names.add("web_search")
 
         # 9b. Live News & Current Events (auto-detect when user needs real-time knowledge)
@@ -257,10 +258,20 @@ class IGIRSAssistant:
             selected_tool_names.add("scrape_webpage")
 
         # 21. Webpage Screenshot
-        if any(w in text for w in ["screenshot of website", "webpage screenshot", "screenshot of url", "capture website", "capture webpage"]) or (
-            "screenshot" in text and re.search(r"https?://|\.com|\.org|\.net|\.io|\.edu", text)
-        ):
+        has_url = bool(re.search(r"https?://|\.com\b|\.org\b|\.net\b|\.io\b|\.edu\b|wikipedia", text))
+        if (any(w in text for w in [
+                "screenshot of website", "webpage screenshot", "screenshot of url",
+                "capture website", "capture webpage", "screenshot of the website",
+                "screenshot of the url", "capture a screenshot of the website",
+                "capture a screenshot of the url"
+            ]) or
+            ("screenshot" in text and has_url) or
+            ("capture" in text and "screenshot" in text and has_url)):
             selected_tool_names.add("capture_webpage_screenshot")
+            # When user clearly wants a website capture, remove conflicting desktop tools
+            if has_url:
+                selected_tool_names.discard("take_screenshot")
+                selected_tool_names.discard("analyze_screen")
 
         # --- J.A.R.V.I.S. Executive Protocols & OS Automator Triggers ---
 
@@ -269,12 +280,29 @@ class IGIRSAssistant:
             selected_tool_names.add("execute_protocol")
 
         # 23. File & Folder Operations
-        if (any(w in text for w in ["find file", "search for file", "search file", "search files", "find my", "where is file"]) or
+        os_file_context = any(w in text for w in [
+            "on my computer", "on my pc", "on my laptop", "on my desktop",
+            "in my folders", "in my downloads", "in my documents", "on disk",
+            "on my drive", "local file", "local files", "files containing"
+        ])
+        if (any(w in text for w in [
+                "find file", "find files", "search for file", "search for files",
+                "search file", "search files", "find my", "where is file",
+                "where is the file", "where are the files", "locate file", "locate files",
+                "search for any file", "search for any files"
+            ]) or
+            re.search(r"\b(search|find|look)\b.*\b(file|files)\b", text) or
             re.search(r"\b(create|make|new)\s+(folder|directory)\b", text) or
             re.search(r"\b(create|write|new)\s+(file|document|script)\b", text) or
             re.search(r"\b(read|view|show|display)\s+(file|document)\b", text) or
-            re.search(r"\b(open|launch)\s+(file|document|pdf|image)\b", text)):
+            re.search(r"\b(open|launch)\s+(file|document|pdf|image)\b", text) or
+            os_file_context):
             selected_tool_names.add("manage_files")
+            # If user clearly means OS file search (not document RAG or web search), remove conflicting tools
+            if os_file_context or re.search(r"\b(search|find|look)\b.*\b(file|files)\b", text):
+                selected_tool_names.discard("query_documents")
+                selected_tool_names.discard("summarize_document")
+                selected_tool_names.discard("web_search")
 
         # 24. Process & Task Manager
         if (any(w in text for w in ["heavy process", "running process", "task manager", "what apps are running", "resource usage", "heavy tasks"]) or
@@ -301,6 +329,85 @@ class IGIRSAssistant:
         all_tools = self.tools.get_tool_definitions()
         filtered = [t for t in all_tools if t["function"]["name"] in selected_tool_names]
         return filtered if filtered else None
+
+    def _parse_tool_calls_from_content(self, content: str) -> Optional[List[Dict[str, Any]]]:
+        """
+        Detects and extracts tool calls if the LLM outputted them as content text
+        (e.g. Markdown code blocks, XML tags, or raw JSON) instead of native tool_calls.
+        """
+        if not content:
+            return None
+
+        alias_map = {
+            "analyze_screenshot": "analyze_screen",
+            "screen_vision": "analyze_screen",
+            "search_files": "manage_files",
+            "find_files": "manage_files",
+            "play_music": "play_media",
+            "open_app": "open_application",
+            "web_screenshot": "capture_webpage_screenshot",
+            "screenshot_website": "capture_webpage_screenshot",
+        }
+
+        # 1. XML parameter style: <tool_call> <function=name> <parameter=k>v</parameter> ... </function> </tool_call>
+        xml_match = re.search(r"<tool_call>[\s\S]*?<function[=\s]+(\w+)>([\s\S]*?)</function>[\s\S]*?</tool_call>", content)
+        if xml_match:
+            fn_name = xml_match.group(1)
+            params_str = xml_match.group(2)
+            args = {}
+            for pm in re.finditer(r"<parameter[=\s]+(\w+)>(.*?)</parameter>", params_str, re.DOTALL):
+                val = pm.group(2).strip()
+                if val.lower() == "true":
+                    args[pm.group(1)] = True
+                elif val.lower() == "false":
+                    args[pm.group(1)] = False
+                elif val.isdigit():
+                    args[pm.group(1)] = int(val)
+                else:
+                    args[pm.group(1)] = val
+            real_name = alias_map.get(fn_name, fn_name)
+            return [{"id": "call_parsed_xml", "type": "function", "function": {"name": real_name, "arguments": json.dumps(args)}}]
+
+        # 2. XML JSON style: <tool_call> { ... } </tool_call>
+        xml_json = re.search(r"<tool_call>\s*(\{[\s\S]*?\})\s*</tool_call>", content)
+        if xml_json:
+            try:
+                data = json.loads(xml_json.group(1))
+                if isinstance(data, dict) and ("name" in data or "function" in data):
+                    fn_name = data.get("name") or data.get("function")
+                    args = data.get("arguments") or data.get("parameters") or {}
+                    real_name = alias_map.get(fn_name, fn_name)
+                    return [{"id": "call_parsed_xml_json", "type": "function", "function": {"name": real_name, "arguments": json.dumps(args) if isinstance(args, dict) else str(args)}}]
+            except Exception:
+                pass
+
+        # 3. Markdown JSON code block: ```json { ... } ```
+        md_json = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", content)
+        if md_json:
+            try:
+                data = json.loads(md_json.group(1))
+                if isinstance(data, dict) and ("name" in data or "function" in data or "action" in data):
+                    fn_name = data.get("name") or data.get("function") or data.get("action")
+                    args = data.get("arguments") or data.get("parameters") or {}
+                    real_name = alias_map.get(fn_name, fn_name)
+                    return [{"id": "call_parsed_md", "type": "function", "function": {"name": real_name, "arguments": json.dumps(args) if isinstance(args, dict) else str(args)}}]
+            except Exception:
+                pass
+
+        # 4. Bare JSON: { "name": ..., "arguments": ... }
+        stripped = content.strip()
+        if stripped.startswith("{") and stripped.endswith("}"):
+            try:
+                data = json.loads(stripped)
+                if isinstance(data, dict) and ("name" in data or "function" in data or "action" in data):
+                    fn_name = data.get("name") or data.get("function") or data.get("action")
+                    args = data.get("arguments") or data.get("parameters") or {}
+                    real_name = alias_map.get(fn_name, fn_name)
+                    return [{"id": "call_parsed_bare", "type": "function", "function": {"name": real_name, "arguments": json.dumps(args) if isinstance(args, dict) else str(args)}}]
+            except Exception:
+                pass
+
+        return None
 
     def process_message(
         self,
@@ -344,6 +451,51 @@ class IGIRSAssistant:
         # Route tools intelligently
         active_tools = self.route_tools_for_input(user_input)
 
+        # Contextual follow-up detection: If no tools routed but user is confirming
+        # a prior suggestion (e.g. "yes do it", "go ahead", "sure", "do it"),
+        # scan recent history for tool context and re-route appropriate tools.
+        if active_tools is None:
+            confirm_phrases = [
+                "yes", "yes do it", "do it", "go ahead", "sure", "proceed",
+                "yeah", "yep", "yup", "yes please", "ok do it", "okay do it",
+                "go for it", "make it happen", "yes go ahead", "do that",
+                "yeah do it", "sure do it", "yes sure", "absolutely"
+            ]
+            text_lower = user_input.lower().strip()
+            if text_lower in confirm_phrases or re.match(r"^(yes|yeah|yep|sure|ok|okay|go ahead|do it|proceed)\b", text_lower):
+                # Scan the last few assistant messages for tool/action context
+                context_tools = set()
+                for msg in reversed(self.memory.history[-6:]):
+                    if msg.get("role") != "assistant":
+                        continue
+                    prev_content = (msg.get("content") or "").lower()
+                    # Detect if assistant previously mentioned analyzing/screenshot/screen
+                    if any(w in prev_content for w in ["analyze", "analyse", "screen", "screenshot", "inspect", "vision"]):
+                        context_tools.add("analyze_screen")
+                    if any(w in prev_content for w in ["play", "youtube", "spotify", "music", "song"]):
+                        context_tools.add("play_media")
+                        context_tools.add("play_youtube")
+                    if any(w in prev_content for w in ["search", "find", "look up", "google"]):
+                        context_tools.add("web_search")
+                    if any(w in prev_content for w in ["file", "folder", "document", "resume"]):
+                        context_tools.add("manage_files")
+                    if any(w in prev_content for w in ["whatsapp", "message"]):
+                        context_tools.add("send_whatsapp")
+                    if any(w in prev_content for w in ["email", "mail", "draft"]):
+                        context_tools.add("send_email")
+                        context_tools.add("draft_email")
+                    if any(w in prev_content for w in ["timer", "remind", "alarm"]):
+                        context_tools.add("set_timer")
+                    if any(w in prev_content for w in ["capture", "webpage screenshot", "website screenshot"]):
+                        context_tools.add("capture_webpage_screenshot")
+                    if context_tools:
+                        break
+                if context_tools:
+                    all_tools = self.tools.get_tool_definitions()
+                    active_tools = [t for t in all_tools if t["function"]["name"] in context_tools]
+                    if not active_tools:
+                        active_tools = None
+
         # 3. Call LLM
         response_data = self.llm.chat_completion(
             messages=messages,
@@ -362,10 +514,19 @@ class IGIRSAssistant:
         tool_calls = message.get("tool_calls")
         content = message.get("content") or ""
 
+        # Auto-recover tool call if LLM outputted it in content instead of API tool_calls
+        if not tool_calls:
+            parsed_calls = self._parse_tool_calls_from_content(content)
+            if parsed_calls:
+                tool_calls = parsed_calls
+                content = ""
+
         # 4. Handle Tool Calling if invoked
-        if tool_calls and active_tools:
+        if tool_calls:
             self.memory.add_assistant_message(content, tool_calls=tool_calls)
 
+            tool_output = ""
+            last_fn_name = ""
             for tool_call in tool_calls:
                 call_id = tool_call.get("id", "call_default")
                 function = tool_call.get("function", {})
@@ -382,6 +543,7 @@ class IGIRSAssistant:
 
                 # Execute tool
                 tool_output = self.tools.execute_tool(fn_name, args)
+                last_fn_name = fn_name
 
                 if on_tool_result:
                     on_tool_result(fn_name, tool_output)
@@ -391,25 +553,43 @@ class IGIRSAssistant:
 
             # If single-turn complete tools were called, output is already formatted
             single_turn_tools = [
-                "analyze_screen", "query_documents", "summarize_document",
+                "analyze_screen", "analyze_screenshot", "query_documents", "summarize_document",
                 "send_whatsapp", "send_email", "draft_email", "check_unread_emails", "manage_contacts",
-                "check_product_prices", "scrape_webpage", "capture_webpage_screenshot"
+                "check_product_prices", "scrape_webpage", "capture_webpage_screenshot",
+                "manage_files", "execute_protocol", "manage_processes", "get_storage_status",
+                "empty_recycle_bin", "manage_notes", "get_time_date", "get_system_telemetry",
+                "set_volume", "change_volume_relative", "set_brightness", "change_brightness_relative",
+                "take_screenshot", "open_application"
             ]
             if len(tool_calls) == 1 and tool_calls[0].get("function", {}).get("name") in single_turn_tools:
                 final_content = tool_output
                 try:
                     parsed_res = json.loads(tool_output)
                     if isinstance(parsed_res, dict):
-                        final_content = parsed_res.get("summary") or parsed_res.get("message") or parsed_res.get("answer") or tool_output
+                        # Format file search results cleanly
+                        if last_fn_name == "manage_files" and parsed_res.get("action") == "search":
+                            results = parsed_res.get("results", [])
+                            if results:
+                                lines = [parsed_res.get("spoken_summary", f"Found {len(results)} matching files:")]
+                                for r in results[:8]:
+                                    lines.append(f"- **{r.get('name')}** (`{r.get('path')}`)")
+                                final_content = "\n".join(lines)
+                            else:
+                                final_content = parsed_res.get("spoken_summary", "No matching files found.")
+                        else:
+                            final_content = (
+                                parsed_res.get("summary")
+                                or parsed_res.get("spoken_summary")
+                                or parsed_res.get("message")
+                                or parsed_res.get("answer")
+                                or tool_output
+                            )
                 except Exception:
                     pass
 
                 self.memory.add_assistant_message(final_content)
                 if speak_response:
-                    paragraphs = [p for p in final_content.split("\n\n") if p.strip()]
-                    spoken = paragraphs[0].replace("*", "").replace("#", "").strip() if paragraphs else final_content
-                    if len(spoken) > 280:
-                        spoken = spoken[:280] + "..."
+                    spoken = self.get_spoken_summary(final_content)
                     self.tts.speak(spoken)
                 return final_content
 
@@ -452,6 +632,47 @@ class IGIRSAssistant:
                             content = f"All set, {self.memory.user_name}!"
                 except Exception:
                     pass
+
+            # Sanitize hallucinated XML/tag-based tool calls (e.g. <tool_call>, <function=...>)
+            if re.search(r"<tool_call>|<function[=\s]|</tool_call>|</function>", content_cleaned):
+                # Extract function name and parameters from XML-style hallucination
+                xml_fn_match = re.search(r"<function[=\s]+(\w+)>|function=\"?(\w+)\"?", content_cleaned)
+                xml_params = {}
+                if xml_fn_match:
+                    xml_fn_name = xml_fn_match.group(1) or xml_fn_match.group(2)
+                    # Extract parameters from <parameter=key>value</parameter> patterns
+                    for pm in re.finditer(r"<parameter[=\s]+(\w+)>(.*?)</parameter>", content_cleaned, re.DOTALL):
+                        xml_params[pm.group(1)] = pm.group(2).strip()
+                    # Map hallucinated names to real tool names
+                    fn_map = {
+                        "analyze_screenshot": "analyze_screen",
+                        "analyze_screen": "analyze_screen",
+                        "screen_vision": "analyze_screen",
+                        "play_media": "play_media",
+                        "play_youtube": "play_youtube",
+                        "web_search": "web_search",
+                        "manage_files": "manage_files",
+                        "search_files": "manage_files",
+                        "take_screenshot": "take_screenshot",
+                    }
+                    real_fn = fn_map.get(xml_fn_name, xml_fn_name)
+                    if real_fn in self.tools.handlers:
+                        try:
+                            tool_output = self.tools.execute_tool(real_fn, xml_params)
+                            content = tool_output
+                            # Try extracting a summary from JSON output
+                            try:
+                                parsed_res = json.loads(tool_output)
+                                if isinstance(parsed_res, dict):
+                                    content = parsed_res.get("summary") or parsed_res.get("message") or parsed_res.get("answer") or tool_output
+                            except Exception:
+                                pass
+                        except Exception:
+                            content = f"I tried to run that for you but hit an issue. Could you rephrase your request, {self.memory.user_name}?"
+                    else:
+                        content = f"I wasn't sure how to handle that. Could you rephrase, {self.memory.user_name}?"
+                else:
+                    content = f"I wasn't sure how to handle that. Could you rephrase, {self.memory.user_name}?"
 
             # Direct text response
             self.memory.add_assistant_message(content)

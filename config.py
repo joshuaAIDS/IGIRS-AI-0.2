@@ -12,8 +12,17 @@ NOTES_FILE = BASE_DIR / "notes_store.json"
 KNOWLEDGE_STORE_FILE = BASE_DIR / "knowledge_store.json"
 DOCUMENTS_DIR = BASE_DIR / "data_documents"
 DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
-WEB_SCREENSHOTS_DIR = BASE_DIR / "temp_web_captures"
-WEB_SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+# Primary Screenshots Directory (Strictly configured to user's OneDrive Screenshots folder)
+SCREENSHOTS_DIR = Path(r"C:\Users\joshu\OneDrive\Scans\Pictures\Screenshots")
+if not SCREENSHOTS_DIR.exists():
+    try:
+        SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        SCREENSHOTS_DIR = Path.home() / "Pictures" / "Screenshots"
+        SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+
+# All web & system captures save to the user's OneDrive Screenshots folder
+WEB_SCREENSHOTS_DIR = SCREENSHOTS_DIR
 CONTACTS_FILE = BASE_DIR / "contacts_store.json"
 EMAIL_CONFIG_FILE = BASE_DIR / "email_config.json"
 DEFAULT_COUNTRY_CODE = "+91"

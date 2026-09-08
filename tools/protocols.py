@@ -154,10 +154,10 @@ class ProtocolsEngine:
                     except Exception:
                         pass
 
-        # 2. Clean temp_web_captures
-        web_caps = config.WEB_SCREENSHOTS_DIR
-        if web_caps.exists():
-            for f in web_caps.glob("*"):
+        # 2. Clean temporary caches
+        temp_cache = config.BASE_DIR / "temp_web_captures"
+        if temp_cache.exists():
+            for f in temp_cache.glob("*"):
                 if f.is_file():
                     try:
                         freed_bytes += f.stat().st_size

@@ -97,6 +97,9 @@ class GroqLLMClient:
         if not self.api_keys:
             raise RuntimeError("No Groq API keys available.")
 
+        # Models known to NOT support tool/function calling on Groq
+        TOOL_INCOMPATIBLE_MODELS = {"groq/compound", "groq/compound-mini"}
+
         models_to_try = [
             model or self.primary_model,
             self.reasoning_model,
@@ -105,6 +108,16 @@ class GroqLLMClient:
         # Remove duplicates while preserving order
         seen = set()
         models_to_try = [m for m in models_to_try if m and not (m in seen or seen.add(m))]
+
+        # When tools are being sent, filter out models that don't support tool calling
+        # and add known tool-capable fallbacks
+        if tools:
+            models_to_try = [m for m in models_to_try if m not in TOOL_INCOMPATIBLE_MODELS]
+            # Add extra tool-capable fallback models if not already present
+            tool_fallbacks = ["openai/gpt-oss-20b", "qwen/qwen3.6-27b"]
+            for fb in tool_fallbacks:
+                if fb not in models_to_try:
+                    models_to_try.append(fb)
 
         pool_size = len(self.api_keys)
         clean_messages = self._sanitize_messages(messages)
@@ -161,6 +174,9 @@ class GroqLLMClient:
                         elif "model_not_found" in err_str or "decommissioned" in err_str:
                             logger.warning(f"Groq model {attempt_model} unavailable, trying fallback model...")
                             break
+                        elif "tool calling" in err_str.lower() or "not supported" in err_str.lower():
+                            logger.warning(f"Groq model {attempt_model} does not support tool calling. Skipping to next model...")
+                            break
                         else:
                             logger.warning(f"Groq SDK error on Key #{key_num}: {err_str[:120]}. Retrying...")
                             self.rotate_key()
@@ -207,7 +223,11 @@ class GroqLLMClient:
                         self.rotate_key()
                         continue
                     elif he.code in (400, 404):
-                        logger.warning(f"Groq model {attempt_model} HTTP {he.code}. Trying fallback model...")
+                        # Check if this is specifically a "tool calling not supported" error
+                        if "tool calling" in error_body.lower() or "not supported" in error_body.lower():
+                            logger.warning(f"Groq model {attempt_model} does not support tool calling (HTTP {he.code}). Skipping to next model...")
+                        else:
+                            logger.warning(f"Groq model {attempt_model} HTTP {he.code}. Trying fallback model...")
                         break
                     else:
                         self.rotate_key()

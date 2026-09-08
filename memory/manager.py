@@ -129,11 +129,15 @@ class MemoryManager:
 
     def add_tool_response(self, tool_call_id: str, tool_name: str, content: str):
         """Records a tool output in the conversation history."""
+        # Cap tool output size to prevent 413 Payload Too Large on subsequent LLM turns
+        safe_content = content
+        if isinstance(safe_content, str) and len(safe_content) > 2000:
+            safe_content = safe_content[:2000] + "\n... (truncated for brevity)"
         self.history.append({
             "role": "tool",
             "tool_call_id": tool_call_id,
             "name": tool_name,
-            "content": content
+            "content": safe_content
         })
         self._trim_history()
         self.save_history()
@@ -149,7 +153,12 @@ class MemoryManager:
         self.save_history()
 
     def get_messages_for_llm(self, system_prompt: str) -> List[Dict[str, Any]]:
-        """Constructs full message list for LLM context."""
+        """Constructs full message list for LLM context, capping message sizes."""
         messages = [{"role": "system", "content": system_prompt}]
-        messages.extend(self.history)
+        for msg in self.history:
+            m = dict(msg)
+            c = m.get("content")
+            if isinstance(c, str) and len(c) > 2500:
+                m["content"] = c[:2500] + "\n... (truncated)"
+            messages.append(m)
         return messages

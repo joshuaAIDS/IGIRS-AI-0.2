@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
+import config
 
 logger = logging.getLogger("IGIRS.SystemControls")
 
@@ -157,11 +158,11 @@ def set_brightness(level_percent: int) -> Dict[str, Any]:
 
 def take_screenshot(filename: Optional[str] = None) -> Dict[str, Any]:
     """
-    Captures the primary monitor and saves to Pictures/Screenshots.
+    Captures the primary monitor and saves strictly to the user's Screenshots directory.
     Uses multi-method capture (PIL ImageGrab, mss, PowerShell) for maximum reliability.
     """
     try:
-        screenshots_dir = Path.home() / "Pictures" / "Screenshots"
+        screenshots_dir = config.SCREENSHOTS_DIR
         screenshots_dir.mkdir(parents=True, exist_ok=True)
 
         if not filename or not filename.strip():

@@ -9,6 +9,7 @@ import time
 import json
 import logging
 import urllib.parse
+from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
 import requests
@@ -50,6 +51,18 @@ class WebAutomator:
         self.session.headers.update(self.headers)
         self.history: List[Dict[str, Any]] = []
 
+    def _launch_browser(self, p):
+        """Launches browser via msedge (pre-installed on Windows), chrome, or default chromium."""
+        for channel in ["msedge", "chrome", None]:
+            try:
+                if channel:
+                    return p.chromium.launch(headless=True, channel=channel)
+                else:
+                    return p.chromium.launch(headless=True)
+            except Exception:
+                continue
+        return None
+
     # ═══════════════════════════════════════════════════════════════════
     # 1. LIVE E-COMMERCE PRICE CHECKS & PRODUCT COMPARISON
     # ═══════════════════════════════════════════════════════════════════
@@ -75,12 +88,13 @@ class WebAutomator:
         if PLAYWRIGHT_AVAILABLE:
             try:
                 with sync_playwright() as p:
-                    browser = p.chromium.launch(headless=True)
-                    page = browser.new_page(user_agent=self.user_agent)
-                    page.goto(url, timeout=12000, wait_until="domcontentloaded")
-                    time.sleep(1.0)
-                    html_content = page.content()
-                    browser.close()
+                    browser = self._launch_browser(p)
+                    if browser:
+                        page = browser.new_page(user_agent=self.user_agent)
+                        page.goto(url, timeout=12000, wait_until="domcontentloaded")
+                        time.sleep(1.0)
+                        html_content = page.content()
+                        browser.close()
             except Exception as e:
                 logger.debug(f"Playwright Amazon scrape fallback to HTTP: {e}")
 
@@ -150,12 +164,13 @@ class WebAutomator:
         if PLAYWRIGHT_AVAILABLE:
             try:
                 with sync_playwright() as p:
-                    browser = p.chromium.launch(headless=True)
-                    page = browser.new_page(user_agent=self.user_agent)
-                    page.goto(url, timeout=12000, wait_until="domcontentloaded")
-                    time.sleep(1.0)
-                    html_content = page.content()
-                    browser.close()
+                    browser = self._launch_browser(p)
+                    if browser:
+                        page = browser.new_page(user_agent=self.user_agent)
+                        page.goto(url, timeout=12000, wait_until="domcontentloaded")
+                        time.sleep(1.0)
+                        html_content = page.content()
+                        browser.close()
             except Exception as e:
                 logger.debug(f"Playwright Flipkart scrape fallback to HTTP: {e}")
 
@@ -467,7 +482,8 @@ class WebAutomator:
         if not url.startswith("http://") and not url.startswith("https://"):
             url = f"https://{url}"
 
-        filename = f"web_capture_{int(time.time())}.png"
+        clean_domain = urllib.parse.urlparse(url).netloc.replace("www.", "").split(".")[0] or "web"
+        filename = f"{clean_domain}_screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
         output_path = self.screenshots_dir / filename
 
         if not PLAYWRIGHT_AVAILABLE:
@@ -479,12 +495,15 @@ class WebAutomator:
 
         try:
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
+                browser = self._launch_browser(p)
+                if not browser:
+                    return {"status": "error", "message": "Could not launch browser (msedge/chrome/chromium) for webpage capture.", "url": url}
+
                 page = browser.new_page(
                     viewport={"width": 1280, "height": 800},
                     user_agent=self.user_agent
                 )
-                page.goto(url, timeout=16000, wait_until="networkidle")
+                page.goto(url, timeout=18000, wait_until="domcontentloaded")
                 if wait_seconds > 0:
                     time.sleep(wait_seconds)
 
@@ -499,7 +518,7 @@ class WebAutomator:
                 "title": page_title or url,
                 "screenshot_path": str(output_path),
                 "full_page": full_page,
-                "summary": f"Captured screenshot of '{page_title or url}' saved to {output_path.name}."
+                "summary": f"Captured screenshot of '{page_title or url}' and saved it to your Screenshots folder as '{filename}'."
             }
         except Exception as e:
             logger.error(f"Playwright screenshot error: {e}")
