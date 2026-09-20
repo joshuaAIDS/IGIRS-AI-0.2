@@ -14,6 +14,8 @@ from typing import Dict, Any, List, Callable, Optional
 import urllib.request
 import urllib.parse
 import xml.etree.ElementTree as ET
+import re
+import html
 import config
 
 logger = logging.getLogger("IGIRS.Tools")
@@ -1017,6 +1019,55 @@ class ToolRegistry:
                 return "\n".join(output_lines)
         except Exception as e:
             logger.info(f"DDGS web search notice: {e}")
+
+        # Layer 1.5: Direct DuckDuckGo HTML Live Scraper (Zero external library dependencies)
+        try:
+            import html as html_parser
+            encoded = urllib.parse.quote(query)
+            html_url = f"https://html.duckduckgo.com/html/?q={encoded}"
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9"
+            }
+            req = urllib.request.Request(html_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                content = resp.read().decode("utf-8", errors="ignore")
+
+            blocks = re.split(r'<div[^>]*class="[^"]*result\b[^"]*"', content)
+            parsed_results = []
+            for b in blocks[1:6]:
+                title_m = re.search(r'<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>(.*?)</a>', b, re.DOTALL | re.IGNORECASE)
+                snippet_m = re.search(r'<(?:a|td|div)[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</(?:a|td|div)>', b, re.DOTALL | re.IGNORECASE)
+                if title_m:
+                    raw_url = title_m.group(1)
+                    raw_title = title_m.group(2)
+                    clean_url = raw_url
+                    if "uddg=" in raw_url:
+                        uddg = raw_url.split("uddg=")[1].split("&")[0]
+                        clean_url = urllib.parse.unquote(uddg)
+                    elif clean_url.startswith("//"):
+                        clean_url = f"https:{clean_url}"
+                    clean_title = re.sub(r"<[^>]*>", "", raw_title).strip()
+                    clean_title = html_parser.unescape(clean_title)
+                    clean_snippet = ""
+                    if snippet_m:
+                        clean_snippet = re.sub(r"<[^>]*>", "", snippet_m.group(1)).strip()
+                        clean_snippet = html_parser.unescape(clean_snippet)
+                    if clean_title:
+                        parsed_results.append((clean_title, clean_snippet, clean_url))
+
+            if parsed_results:
+                output_lines = [f"Live web search results for '{query}':\n"]
+                for i, (t, s, u) in enumerate(parsed_results, 1):
+                    output_lines.append(f"{i}. {t}")
+                    if s:
+                        output_lines.append(f"   {s}")
+                    if u:
+                        output_lines.append(f"   Source: {u}")
+                return "\n".join(output_lines)
+        except Exception as e:
+            logger.info(f"Direct DDG HTML search notice: {e}")
 
         # Layer 2: Wikipedia Summary REST API (Fast factual encyclopedia lookup)
         try:

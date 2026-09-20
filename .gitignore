@@ -51,3 +51,6 @@ scratch/*.wav
 # Contacts & Email Configurations
 contacts_store.json
 email_config.json
+
+# Android build outputs
+*.apk

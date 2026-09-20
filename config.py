@@ -74,15 +74,16 @@ if env_groq and env_groq not in GROQ_API_KEYS:
 # LLM Providers Configuration
 # Groq: Ultra-fast LPU inference (Qwen-27B default, GPT-120B reasoning)
 GROQ_API_BASE_URL = "https://api.groq.com/openai/v1"
-GROQ_PRIMARY_MODEL = "qwen/qwen3.8-27b"  # 27B ultra-smart conversational & tool model
+GROQ_PRIMARY_MODEL = "openai/gpt-oss-20b"  # Ultra-fast 20B conversational & tool model (sub-second)
 GROQ_REASONING_MODEL = "openai/gpt-oss-120b"  # 120B deep reasoning model
 GROQ_FALLBACK_MODEL = "groq/compound"
 
 # Active LLM Model Selection (100% Groq Powered)
 PRIMARY_LLM_MODEL = GROQ_PRIMARY_MODEL
 FALLBACK_LLM_MODELS = [
+    GROQ_FALLBACK_MODEL,
     GROQ_REASONING_MODEL,
-    GROQ_FALLBACK_MODEL
+    "qwen/qwen3.8-27b"
 ]
 
 # NVIDIA NIM (Legacy / Optional Vision only)
