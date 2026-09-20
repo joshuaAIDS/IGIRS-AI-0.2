@@ -49,13 +49,9 @@ env_key = os.environ.get("NVIDIA_API_KEY")
 if env_key and env_key not in NVIDIA_API_KEYS:
     NVIDIA_API_KEYS.append(env_key)
 
-# Default fallback keys from workspace
+# Default fallback keys (load strictly from gitignored API_KEYS_FILE or environment)
 if not NVIDIA_API_KEYS:
-    NVIDIA_API_KEYS = [
-        "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",
-        "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",
-        "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"
-    ]
+    NVIDIA_API_KEYS = []
 
 # Load Groq API Keys (10-Key Auto-Rotation Pool)
 GROQ_API_KEYS = []
