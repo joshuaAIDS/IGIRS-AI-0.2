@@ -52,5 +52,17 @@ scratch/*.wav
 contacts_store.json
 email_config.json
 
-# Android build outputs
+# Android build outputs & caches
 *.apk
+*.ap_
+*.dex
+.gradle/
+build/
+**/build/
+local.properties
+.cxx/
+.externalNativeBuild/
+captures/
+*.keystore
+*.jks
+*GROQ API KEY*.txt

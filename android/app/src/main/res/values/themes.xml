@@ -1,0 +1,20 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.IGIRSAI" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/electric_cyan</item>
+        <item name="colorSecondary">@color/cyber_blue</item>
+        <item name="android:statusBarColor">@color/obsidian_background</item>
+        <item name="android:navigationBarColor">@color/obsidian_background</item>
+        <item name="android:windowBackground">@color/obsidian_background</item>
+    </style>
+
+    <!-- Transparent Floating Overlay Theme for Assistant Session -->
+    <style name="Theme.IGIRSAI.AssistantOverlay" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.6</item>
+    </style>
+</resources>

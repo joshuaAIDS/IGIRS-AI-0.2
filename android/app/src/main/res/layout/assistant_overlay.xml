@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/overlayRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/overlay_scrim">
+
+    <!-- Bottom Assistant Card -->
+    <LinearLayout
+        android:id="@+id/overlayCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bg_overlay_sheet"
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:gravity="center_horizontal">
+
+        <!-- Top Drag Pill / Status Header -->
+        <View
+            android:layout_width="48dp"
+            android:layout_height="4dp"
+            android:background="#2E3C52"
+            android:layout_marginBottom="16dp" />
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/tvOverlayTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:fontFamily="sans-serif-black"
+                android:letterSpacing="0.1"
+                android:text="J.A.R.V.I.S. // IGIRS AI"
+                android:textColor="@color/electric_cyan"
+                android:textSize="13sp" />
+
+            <ImageView
+                android:id="@+id/btnCloseOverlay"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_alignParentEnd="true"
+                android:src="@drawable/ic_close"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Close Assistant" />
+        </RelativeLayout>
+
+        <!-- Dynamic Cyber Orb Visualizer -->
+        <com.igirs.ai.ui.CyberOrbView
+            android:id="@+id/overlayCyberOrb"
+            android:layout_width="160dp"
+            android:layout_height="160dp"
+            android:layout_marginTop="8dp" />
+
+        <!-- Status Indicator Text (Listening, Processing, Speaking) -->
+        <TextView
+            android:id="@+id/tvOverlayState"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="0.05"
+            android:text="@string/listening_state"
+            android:textColor="@color/electric_cyan"
+            android:textSize="14sp" />
+
+        <!-- User Speech Transcript -->
+        <TextView
+            android:id="@+id/tvUserTranscript"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_cyber_card"
+            android:padding="12dp"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:text="Listening..."
+            android:visibility="visible" />
+
+        <!-- Assistant Direct Response -->
+        <TextView
+            android:id="@+id/tvAssistantResponse"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="#141B2D"
+            android:padding="12dp"
+            android:textColor="@color/electric_cyan"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <!-- Action Controls Bar (Continuous Mode, Mic, Camera Vision) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <!-- Continuous Hands-Free Listening Pill -->
+            <ImageButton
+                android:id="@+id/btnContinuousToggle"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="20dp"
+                android:background="@drawable/bg_cyber_card"
+                android:src="@drawable/ic_continuous"
+                android:contentDescription="Continuous Listening" />
+
+            <!-- Main Mic Button -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabMicToggle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_mic"
+                app:backgroundTint="@color/electric_cyan"
+                app:tint="@color/obsidian_background"
+                app:elevation="6dp"
+                android:contentDescription="Toggle Mic" />
+
+            <!-- Camera Vision Button -->
+            <ImageButton
+                android:id="@+id/btnCameraVision"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginStart="20dp"
+                android:background="@drawable/bg_cyber_card"
+                android:src="@drawable/ic_camera"
+                android:contentDescription="Camera Vision" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="12dp" />
+
+    </LinearLayout>
+
+</FrameLayout>

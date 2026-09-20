@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<voice-interaction-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:sessionService="com.igirs.ai.assistant.IgirsVoiceInteractionSessionService"
+    android:recognitionService="com.igirs.ai.assistant.IgirsRecognitionService"
+    android:settingsActivity="com.igirs.ai.ui.MainActivity"
+    android:supportsAssist="true"
+    android:supportsLocalInteraction="true" />

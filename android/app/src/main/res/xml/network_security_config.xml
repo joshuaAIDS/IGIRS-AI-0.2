@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Strict Global Network Firewall: Blocks all Cleartext (HTTP) traffic completely -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Only trust official Android system CAs (blocks MITM proxy cert injection) -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Trusted Cloud API Endpoints -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.groq.com</domain>
+        <domain includeSubdomains="true">groq.com</domain>
+        <domain includeSubdomains="true">whatsapp.com</domain>
+        <domain includeSubdomains="true">youtube.com</domain>
+        <domain includeSubdomains="true">speech.platform.bing.com</domain>
+        <domain includeSubdomains="true">bing.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

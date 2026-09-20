@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">IGIRS AI</string>
+    <string name="assistant_title">IGIRS AI Companion</string>
+    <string name="listening_state">Listening...</string>
+    <string name="thinking_state">Thinking...</string>
+    <string name="speaking_state">Responding...</string>
+    <string name="standby_state">Standing by.</string>
+    <string name="default_assistant_btn">Set as Default Assistant</string>
+    <string name="save_key_btn">Groq LPU Active</string>
+    <string name="test_mic_btn">Start Voice Session</string>
+    <string name="api_key_hint">Groq LPU Cluster Secured</string>
+    <string name="status_ready">IGIRS AI Online &amp; Ready.</string>
+    <string name="accessibility_service_desc">Enables hands-free auto-sending for WhatsApp messages requested via IGIRS AI.</string>
+    <string name="enable_auto_send_btn">Enable WhatsApp Auto-Send</string>
+</resources>
